@@ -1,0 +1,55 @@
+# Local development stack: MinIO stands in for S3, so nothing here touches AWS.
+# The same pipeline image later runs on AWS Fargate; only these environment
+# variables change (no endpoint URL, and IAM credentials instead of MinIO keys).
+#
+# The MinIO credentials below are throwaway local defaults. Override them by
+# copying .env.example to .env if you like.
+
+services:
+  minio:
+    # MinIO no longer publishes its community images on Docker Hub, so these come from quay.io.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # web console: http://localhost:9001
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-nfl-data}
+    entrypoint: >
+      sh -c "mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+             mc mb --ignore-existing local/$$S3_BUCKET"
+
+  pipeline:
+    build: .
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-nfl-data}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_DEFAULT_REGION: us-east-1
+    # Usage: docker compose run --rm pipeline ingest --datasets schedules
+
+volumes:
+  minio-data:

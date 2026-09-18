@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local data and secrets
+data/
+.env
+
+# Terraform (used from phase 1C)
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
