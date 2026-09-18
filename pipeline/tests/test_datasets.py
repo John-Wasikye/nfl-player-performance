@@ -26,10 +26,10 @@ def test_urls_point_at_the_release_download_location():
 
     assert file.url == (
         "https://github.com/nflverse/nflverse-data/releases/download/"
-        "stats_player/stats_player_regpost_2026.parquet"
+        "stats_player/stats_player_week_2026.parquet"
     )
     assert file.timestamp_url.endswith("/stats_player/timestamp.json")
-    assert file.file_id == "stats_player/stats_player_regpost_2026.parquet"
+    assert file.file_id == "stats_player/stats_player_week_2026.parquet"
 
 
 def test_none_selects_every_dataset():

@@ -1,0 +1,8 @@
+# Run dbt from the repository root:  dbt build --project-dir dbt --profiles-dir dbt
+nfl:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('WAREHOUSE_PATH', 'data/warehouse.duckdb') }}"
+      threads: 4

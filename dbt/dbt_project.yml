@@ -1,0 +1,25 @@
+name: nfl
+version: "0.1.0"
+profile: nfl
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+# Where the ingest wrote raw files (a local folder, or an s3:// path once AWS is set up).
+vars:
+  raw_root: "{{ env_var('RAW_ROOT', 'data/raw') }}"
+
+models:
+  nfl:
+    staging:
+      +materialized: table
+    marts:
+      +materialized: table
+
+seeds:
+  nfl:
+    position_map:
+      +column_types:
+        is_ranked_v1: boolean

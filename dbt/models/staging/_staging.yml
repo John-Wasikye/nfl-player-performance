@@ -1,0 +1,80 @@
+version: 2
+
+models:
+  - name: stg_schedules
+    description: One row per scheduled game (past and upcoming) with standardized team codes.
+    data_tests:
+      - not_empty
+    columns:
+      - name: game_id
+        data_tests: [unique, not_null]
+      - name: season
+        data_tests: [not_null]
+      - name: week
+        data_tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: week between 1 and 22
+      - name: game_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [REG, WC, DIV, CON, SB]
+      - name: home_team
+        data_tests: [not_null]
+      - name: away_team
+        data_tests: [not_null]
+
+  - name: stg_players
+    description: One row per player in the nflverse player database (no headshot URLs).
+    data_tests:
+      - not_empty
+    columns:
+      - name: player_id
+        data_tests: [unique, not_null]
+
+  - name: stg_player_stats
+    description: One row per player per week from nflverse weekly player stats.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]
+    columns:
+      - name: player_id
+        data_tests: [not_null]
+      - name: season
+        data_tests: [not_null]
+      - name: week
+        data_tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: week between 1 and 22
+      - name: season_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [REG, POST]
+      - name: position_group
+        description: Our normalized position group. Null means a position label missing from position_map.
+        data_tests:
+          - not_null
+      - name: team
+        data_tests: [not_null]
+
+  - name: stg_snap_counts
+    description: One row per player per game with snap counts, keyed by Pro Football Reference id.
+    data_tests:
+      - not_empty
+    columns:
+      - name: pfr_player_id
+        data_tests: [not_null]
+
+  - name: stg_injuries
+    description: One injury report entry per player per week.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]

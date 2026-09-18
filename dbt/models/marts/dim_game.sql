@@ -1,0 +1,26 @@
+-- One row per game. Upcoming games have null scores and is_final = false.
+select
+    game_id,
+    season,
+    game_type,
+    week,
+    game_date,
+    kickoff_et,
+    home_team,
+    away_team,
+    home_score,
+    away_score,
+    is_final,
+    went_to_overtime,
+    home_rest,
+    away_rest,
+    spread_line,
+    total_line,
+    is_divisional,
+    roof,
+    surface,
+    temp,
+    wind,
+    stadium_id,
+    stadium
+from {{ ref('stg_schedules') }}

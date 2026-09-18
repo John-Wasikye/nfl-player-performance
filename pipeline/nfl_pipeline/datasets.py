@@ -59,7 +59,7 @@ DATASETS: dict[str, Dataset] = {
         Dataset(
             "stats_player",
             "stats_player",
-            "stats_player_regpost_{season}.parquet",
+            "stats_player_week_{season}.parquet",
             per_season=True,
         ),
         Dataset("pbp", "pbp", "play_by_play_{season}.parquet", per_season=True),

@@ -1,0 +1,26 @@
+version: 2
+
+seeds:
+  - name: teams
+    columns:
+      - name: team_code
+        data_tests: [unique, not_null]
+
+  - name: team_map
+    description: Legacy or alternate team codes mapped to the current code.
+    columns:
+      - name: raw_code
+        data_tests: [unique, not_null]
+      - name: team_code
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('teams')
+                field: team_code
+
+  - name: position_map
+    description: Maps every position label nflverse uses to our position group.
+    columns:
+      - name: position
+        data_tests: [unique, not_null]

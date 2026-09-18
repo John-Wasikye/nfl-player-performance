@@ -16,7 +16,7 @@ from nfl_pipeline.ingest import (
 )
 
 BASE = "https://github.com/nflverse/nflverse-data/releases/download"
-STATS_URL = f"{BASE}/stats_player/stats_player_regpost_2026.parquet"
+STATS_URL = f"{BASE}/stats_player/stats_player_week_2026.parquet"
 PLAYERS_URL = f"{BASE}/players/players.parquet"
 
 
@@ -38,7 +38,7 @@ def test_ingests_a_file_into_a_dated_raw_key(github, storage, no_sleep):
     (result,) = manifest.results
     assert result.status == INGESTED
     assert result.key == (
-        "raw/stats_player/season=2026/ingest_date=2026-09-18/stats_player_regpost_2026.parquet"
+        "raw/stats_player/season=2026/ingest_date=2026-09-18/stats_player_week_2026.parquet"
     )
     assert result.rows == 5
     assert result.columns == 2
@@ -67,7 +67,7 @@ def test_writes_run_manifest_and_state(github, storage, no_sleep):
     assert saved["results"][0]["status"] == INGESTED
     assert saved["results"][0]["sha256"]
     state = json.loads(storage.get_bytes(STATE_KEY))
-    assert state["stats_player/stats_player_regpost_2026.parquet"]["source_last_updated"] == "t1"
+    assert state["stats_player/stats_player_week_2026.parquet"]["source_last_updated"] == "t1"
 
 
 def test_skips_unchanged_source_on_second_run(github, storage, no_sleep):
@@ -220,9 +220,7 @@ def test_one_failure_does_not_stop_other_files(github, storage, no_sleep):
 def test_multiple_seasons_are_separate_files(github, storage, no_sleep):
     github.serve_timestamp("stats_player", "t1")
     for season in (2025, 2026):
-        github.serve(
-            f"{BASE}/stats_player/stats_player_regpost_{season}.parquet", body=make_parquet()
-        )
+        github.serve(f"{BASE}/stats_player/stats_player_week_{season}.parquet", body=make_parquet())
 
     manifest = run(stats_files(2025, 2026), storage, github, no_sleep)
 
@@ -236,7 +234,7 @@ def test_new_season_is_ingested_even_when_release_timestamp_is_unchanged(github,
     github.serve(STATS_URL, body=make_parquet())
     run(stats_files(2026), storage, github, no_sleep)
 
-    github.serve(f"{BASE}/stats_player/stats_player_regpost_2025.parquet", body=make_parquet())
+    github.serve(f"{BASE}/stats_player/stats_player_week_2025.parquet", body=make_parquet())
     second = run(stats_files(2025, 2026), storage, github, no_sleep)
 
     statuses = {result.season: result.status for result in second.results}

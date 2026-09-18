@@ -1,0 +1,111 @@
+version: 2
+
+models:
+  - name: dim_team
+    description: The 32 current NFL franchises.
+    columns:
+      - name: team_code
+        data_tests: [unique, not_null]
+
+  - name: dim_player
+    description: One row per player.
+    columns:
+      - name: player_id
+        data_tests: [unique, not_null]
+      - name: pfr_id
+        description: Pro Football Reference id, used to attach snap counts.
+        data_tests:
+          - unique:
+              config:
+                where: "pfr_id is not null"
+
+  - name: dim_game
+    description: One row per game. Upcoming games have null scores and is_final = false.
+    columns:
+      - name: game_id
+        data_tests: [unique, not_null]
+      - name: home_team
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_code
+      - name: away_team
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_code
+
+  - name: fct_player_week
+    description: >
+      One row per player per week: weekly stat line, game, snap share, and injury status.
+      position_group is the position listed for that week.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]
+      # A stat line can only exist for a game that has been played.
+      - expression_is_true:
+          arguments:
+            expression: attempts >= completions
+      - expression_is_true:
+          arguments:
+            expression: targets >= receptions
+      - expression_is_true:
+          arguments:
+            expression: fg_att >= fg_made
+      - expression_is_true:
+          arguments:
+            expression: pat_att >= pat_made
+      - expression_is_true:
+          arguments:
+            expression: passing_yards between -100 and 800
+      - expression_is_true:
+          arguments:
+            expression: carries >= 0 and receptions >= 0 and completions >= 0
+      # PPR scoring is standard scoring plus one point per reception.
+      - expression_is_true:
+          arguments:
+            expression: abs(fantasy_points_ppr - fantasy_points - receptions) < 0.001
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: team
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_code
+      - name: opponent_team
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_code
+      - name: game_id
+        description: The game this stat line belongs to.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_game')
+                field: game_id
+      - name: position_group
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [QB, RB, WR, TE, K, P, ST, OL, DL, LB, DB]
+      - name: offense_pct
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: offense_pct between 0 and 1
