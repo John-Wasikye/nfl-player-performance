@@ -574,3 +574,55 @@ def test_a_low_volume_player_is_listed_but_not_ranked(tmp_path):
     # Q4 has a huge EPA total but only 10 attempts: listed, scored by nothing, and not ranked.
     assert rows == [(False, None, None, 4)]
     assert ranks(tmp_path, 2).keys() == {"Q1", "Q2", "Q3"}
+
+
+def test_a_team_that_has_not_played_this_week_is_not_penalized(tmp_path):
+    """Regression: the minimum role scales with games the team has played, not the week number.
+
+    In a week that is still in progress, a quarterback whose team has not played yet has one game
+    behind him. He must be held to a one-game standard, not the week number's two-game standard.
+    """
+    root = tmp_path / "raw"
+    build_ranking_lake(root, {"Q1": 10.0, "Q2": 5.0, "Q3": 0.0})
+
+    def game(game_id, week, home, away, final):
+        return {
+            "game_id": game_id, "season": 2026, "game_type": "REG", "week": week,
+            "gameday": "2026-09-20", "weekday": "Sunday", "gametime": "13:00",
+            "home_team": home, "away_team": away,
+            "home_score": 24 if final else None, "away_score": 17 if final else None,
+            "overtime": 0, "location": "Home", "home_rest": 7, "away_rest": 7,
+            "spread_line": -3.0, "total_line": 45.0, "home_moneyline": -150,
+            "away_moneyline": 130, "div_game": 0, "roof": "outdoors", "surface": "grass",
+            "temp": 70, "wind": 5, "stadium_id": "X", "stadium": "X", "home_qb_id": "Q1",
+            "away_qb_id": "Q2", "home_coach": "A", "away_coach": "B",
+        }  # fmt: skip
+
+    write_parquet(
+        root,
+        "schedules",
+        [
+            game("g1", 1, "KC", "LV", final=True),
+            game("g2", 2, "KC", "DEN", final=True),
+            game("g3", 2, "LV", "SF", final=False),  # Las Vegas has not played week 2 yet
+        ],
+    )
+    # Q5 plays for Las Vegas: 20 attempts in week 1 and nothing yet in week 2.
+    folder = root / "stats_player" / "season=2026" / "ingest_date=2026-09-18"
+    pq.write_table(
+        pa.Table.from_pylist(
+            [stat_line("Q5", "Quinn Five", "QB", "LV", week=1, attempts=20, completions=12)]
+        ),
+        folder / "extra.parquet",
+    )
+    for args in (["seed"], ["run", "--select", "+mart_rankings"]):
+        result = run_dbt(tmp_path, *args)
+        assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-2000:]
+
+    rows = query(
+        tmp_path,
+        "select is_qualified, composite_rank is not null from mart_rankings "
+        "where week = 2 and player_id = 'Q5'",
+    )
+    # 20 attempts against a one-game minimum of 14: qualified. (Two games would need 28.)
+    assert rows == [(True, True)]

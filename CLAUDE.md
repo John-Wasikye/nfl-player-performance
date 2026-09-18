@@ -9,7 +9,10 @@ Follow its phase order (1A local pipeline, 1B website, 1C AWS, 1D predictions, 1
 - Install: `python -m venv .venv`, then `.venv\Scripts\python -m pip install -e ".[dev]"`
 - Tests: `.venv\Scripts\python -m pytest`
 - Lint and format: `.venv\Scripts\python -m ruff check .` and `.venv\Scripts\python -m ruff format .`
-- Run the ingest locally (writes to `data/`): `.venv\Scripts\nfl-pipeline ingest --datasets schedules`
+- Whole pipeline locally (ingest, dbt build with tests, publish): `.venv\Scripts\nfl-pipeline run`
+- Just the ingest: `.venv\Scripts\nfl-pipeline ingest --datasets schedules`
+- dbt (from the repo root, with `.venv\Scripts` on PATH): `dbt build --project-dir dbt --profiles-dir dbt`.
+  After changing a seed's columns, run `dbt seed --full-refresh` or the old columns stay.
 - Docker stack (MinIO plus the pipeline): `docker compose up -d minio minio-init`, then
   `docker compose run --rm pipeline ingest --datasets schedules`
 
@@ -17,6 +20,10 @@ Follow its phase order (1A local pipeline, 1B website, 1C AWS, 1D predictions, 1
 
 - Python 3.10+ locally, 3.12 in Docker. Keep code compatible with 3.10.
 - Write tests alongside every change. No network in tests: use the fakes in `pipeline/tests/conftest.py`.
-- Raw files are immutable dated snapshots; cleaning happens in dbt (phase 1A step 3).
+- Raw files are immutable dated snapshots; cleaning happens in dbt. dbt reads the newest snapshot only.
+- nflverse's weekly stats file is `stats_player_week_<season>` (the `regpost` file is season totals, no week).
+- Ranking rules: minimum role scales with games the team has played; kickers get standard fantasy scoring
+  because nflverse does not score them; rankings are "as of week N" with no lookahead (there is a test).
+- The published JSON is a contract (`contract.py`); changing it means bumping `SCHEMA_VERSION`.
 - Only pull data from nflverse's published release files, never from NFL.com. No player headshots.
 - Rankings use current-season data only; past seasons feed the backtest and the phase 1D predictions.

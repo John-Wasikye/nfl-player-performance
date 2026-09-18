@@ -8,3 +8,6 @@ data
 .ruff_cache
 pipeline/tests
 docs
+dbt/target
+dbt/logs
+dbt/.user.yml

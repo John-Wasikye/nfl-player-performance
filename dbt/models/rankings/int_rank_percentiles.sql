@@ -1,8 +1,8 @@
 -- One row per qualified player, week, and metric: the metric's value and its percentile (0 to 1)
 -- among qualified players at the same position in the same week.
 --
---   * "Qualified" means the player's role volume meets the position's minimum for the week
---     (min_role_per_week in ranking_config, times the week number).
+--   * "Qualified" means the player's role volume meets the position's minimum for the games the
+--     player's team has played (min_role_per_week in ranking_config times team games).
 --   * A metric where lower is better (sack rate, interception rate) is flipped so a low value
 --     earns a high percentile.
 --   * Players with a null value for a metric (no targets, no attempts) get no row for it.

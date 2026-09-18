@@ -18,6 +18,8 @@ class Settings:
     s3_endpoint_url: str | None = None  # set for MinIO; leave unset for real AWS S3
     http_timeout: float = 60.0
     max_attempts: int = 3
+    warehouse_path: Path = Path("data/warehouse.duckdb")  # the dbt DuckDB database
+    dbt_dir: Path = Path("dbt")  # the dbt project (also holds profiles.yml)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -29,6 +31,8 @@ class Settings:
             s3_endpoint_url=env.get("S3_ENDPOINT_URL") or None,
             http_timeout=float(env.get("HTTP_TIMEOUT", "60")),
             max_attempts=int(env.get("MAX_ATTEMPTS", "3")),
+            warehouse_path=Path(env.get("WAREHOUSE_PATH", "data/warehouse.duckdb")),
+            dbt_dir=Path(env.get("DBT_DIR", "dbt")),
         )
 
 

@@ -70,9 +70,44 @@ with metrics as (
     from {{ ref('int_cumulative_stats') }}
 )
 
+-- Games each team has finished through each week (bye weeks carry the count forward).
+, final_team_games as (
+    select season, week, home_team as team from {{ ref('dim_game') }}
+    where game_type = 'REG' and is_final
+    union all
+    select season, week, away_team as team from {{ ref('dim_game') }}
+    where game_type = 'REG' and is_final
+),
+
+team_weeks as (
+    select distinct season, week, team from metrics where team is not null
+),
+
+team_games as (
+    select
+        team_weeks.season,
+        team_weeks.week,
+        team_weeks.team,
+        count(final_team_games.week) as team_games
+    from team_weeks
+    left join final_team_games
+        on team_weeks.season = final_team_games.season
+        and team_weeks.team = final_team_games.team
+        and final_team_games.week <= team_weeks.week
+    group by all
+)
+
 select
     metrics.*,
-    -- ranked only with enough volume for the weeks played: min_role_per_week * week
-    metrics.role_volume >= config.min_role_per_week * metrics.week as is_qualified
+    team_games.team_games,
+    -- ranked only with enough volume for the games the player's team has played:
+    -- min_role_per_week * team games. Counting games (not the week number) keeps players fair
+    -- while a week is still in progress or after a bye.
+    metrics.role_volume >= config.min_role_per_week * greatest(team_games.team_games, 1)
+        as is_qualified
 from metrics
 inner join {{ ref('ranking_config') }} as config using (position_group)
+left join team_games
+    on metrics.season = team_games.season
+    and metrics.week = team_games.week
+    and metrics.team = team_games.team

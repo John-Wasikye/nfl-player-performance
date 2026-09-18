@@ -32,9 +32,9 @@ seeds:
         data_tests: [unique, not_null]
       - name: min_role_per_week
         description: >
-          Minimum role per week played (QB attempts, RB carries + targets, WR/TE targets, K kicks)
-          to be ranked. The requirement grows with the week, so a few good plays never rank a
-          player high late in the season.
+          Minimum role per game the player's team has played (QB attempts, RB carries + targets,
+          WR/TE targets, K kicks) to be ranked. The requirement grows as the season goes on, so a
+          few good plays never rank a player high late in the season.
         data_tests: [not_null]
       - name: efficiency_weight
         data_tests: [not_null]

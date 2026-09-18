@@ -51,5 +51,17 @@ services:
       AWS_DEFAULT_REGION: us-east-1
     # Usage: docker compose run --rm pipeline ingest --datasets schedules
 
+  # The full pipeline (ingest, dbt build with tests, publish) using local files in ./data.
+  # dbt reads raw files from disk for now; reading from S3 arrives with the AWS phase.
+  pipeline-local:
+    build: .
+    environment:
+      STORAGE_BACKEND: local
+      LOCAL_DATA_DIR: /data
+      WAREHOUSE_PATH: /data/warehouse.duckdb
+    volumes:
+      - ./data:/data
+    # Usage: docker compose run --rm pipeline-local run
+
 volumes:
   minio-data:

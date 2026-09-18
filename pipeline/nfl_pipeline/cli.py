@@ -1,9 +1,16 @@
-"""Command line entry point: `nfl-pipeline ingest`."""
+"""Command line entry point.
+
+nfl-pipeline ingest    download nflverse files into raw storage
+nfl-pipeline publish   validate the rankings and write the published JSON
+nfl-pipeline run       ingest, then dbt build (models and tests), then publish
+"""
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
+import subprocess
 import sys
 from collections.abc import Sequence
 from datetime import datetime, timezone
@@ -13,6 +20,7 @@ import httpx
 from nfl_pipeline.config import Settings, build_storage
 from nfl_pipeline.datasets import DATASETS, resolve_files
 from nfl_pipeline.ingest import ingest
+from nfl_pipeline.publish import PublishError, publish
 from nfl_pipeline.season import current_season, parse_seasons
 
 
@@ -20,28 +28,31 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nfl-pipeline", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
 
-    ingest_parser = commands.add_parser("ingest", help="download nflverse files into raw storage")
-    ingest_parser.add_argument(
-        "--seasons",
-        help='seasons to ingest, e.g. "2026", "2024,2025" or "2021-2026" (default: current season)',
+    def add_ingest_options(command: argparse.ArgumentParser) -> None:
+        command.add_argument(
+            "--seasons",
+            help='seasons to ingest, e.g. "2026", "2024,2025" or "2021-2026" '
+            "(default: current season)",
+        )
+        command.add_argument(
+            "--datasets",
+            help=f"comma-separated datasets (default: all). Known: {', '.join(DATASETS)}",
+        )
+        command.add_argument(
+            "--force", action="store_true", help="download even if the source has not changed"
+        )
+
+    add_ingest_options(
+        commands.add_parser("ingest", help="download nflverse files into raw storage")
     )
-    ingest_parser.add_argument(
-        "--datasets",
-        help=f"comma-separated datasets (default: all). Known: {', '.join(DATASETS)}",
-    )
-    ingest_parser.add_argument(
-        "--force", action="store_true", help="download even if the source has not changed"
+    commands.add_parser("publish", help="validate the rankings and write the published JSON")
+    add_ingest_options(
+        commands.add_parser("run", help="ingest, build the dbt models and tests, then publish")
     )
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    # httpx logs every request URL at INFO, and GitHub's download redirects carry signed tokens.
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-
-    now = datetime.now(timezone.utc)
+def _run_ingest(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
     try:
         seasons = parse_seasons(args.seasons) if args.seasons else [current_season(now.date())]
         names = [name.strip() for name in args.datasets.split(",")] if args.datasets else None
@@ -50,7 +61,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    settings = Settings.from_env()
     storage = build_storage(settings)
     with httpx.Client(timeout=settings.http_timeout, follow_redirects=True) as client:
         manifest = ingest(
@@ -67,3 +77,67 @@ def main(argv: Sequence[str] | None = None) -> int:
     for result in manifest.failed:
         print(f"  FAILED {result.dataset}/{result.filename}: {result.error}", file=sys.stderr)
     return 1 if manifest.failed else 0
+
+
+def _run_dbt_build(settings: Settings) -> int:
+    """Run `dbt build` (seeds, models, and data quality tests) against the local raw files."""
+    env = {
+        **os.environ,
+        "RAW_ROOT": str(settings.local_data_dir / "raw"),
+        "WAREHOUSE_PATH": str(settings.warehouse_path),
+    }
+    command = [
+        sys.executable,
+        "-c",
+        "import sys; from dbt.cli.main import cli; sys.exit(cli())",
+        "build",
+        "--project-dir",
+        str(settings.dbt_dir),
+        "--profiles-dir",
+        str(settings.dbt_dir),
+    ]
+    return subprocess.run(command, env=env).returncode
+
+
+def _run_publish(settings: Settings, now: datetime) -> int:
+    try:
+        summary = publish(settings.warehouse_path, build_storage(settings), now=now)
+    except PublishError as error:
+        print(f"publish failed: {error}", file=sys.stderr)
+        return 1
+    print(
+        f"published season {summary.season} through week {summary.latest_week} "
+        f"({summary.files_written} files)"
+    )
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    # httpx logs every request URL at INFO, and GitHub's download redirects carry signed tokens.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+    now = datetime.now(timezone.utc)
+    settings = Settings.from_env()
+
+    if args.command == "ingest":
+        return _run_ingest(args, settings, now)
+    if args.command == "publish":
+        return _run_publish(settings, now)
+
+    # "run": each step must succeed before the next one starts, so bad data is never published.
+    if settings.storage_backend != "local":
+        print(
+            "error: `run` needs STORAGE_BACKEND=local for now (dbt reads S3 from phase 1C)",
+            file=sys.stderr,
+        )
+        return 2
+    code = _run_ingest(args, settings, now)
+    if code != 0:
+        print("run stopped: the ingest failed", file=sys.stderr)
+        return code
+    if _run_dbt_build(settings) != 0:
+        print("run stopped: dbt build failed, so nothing was published", file=sys.stderr)
+        return 1
+    return _run_publish(settings, now)

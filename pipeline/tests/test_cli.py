@@ -7,6 +7,7 @@ import pytest
 from conftest import FakeGitHub, make_parquet
 
 from nfl_pipeline import cli
+from nfl_pipeline.publish import PublishSummary
 
 BASE = "https://github.com/nflverse/nflverse-data/releases/download"
 
@@ -78,3 +79,98 @@ def test_seasons_option_selects_the_files(fake_host):
 
     assert f"{BASE}/pbp/play_by_play_2024.parquet" in fake_host.requests
     assert f"{BASE}/pbp/play_by_play_2025.parquet" in fake_host.requests
+
+
+# --- publish and run ----------------------------------------------------------------------------
+
+
+@pytest.fixture
+def steps(monkeypatch):
+    """Replace dbt and publish with recorders so `run` can be tested without either."""
+    calls: list[str] = []
+    outcome = {"dbt": 0, "publish_error": None}
+
+    def fake_dbt(_settings):
+        calls.append("dbt")
+        return outcome["dbt"]
+
+    def fake_publish(_warehouse, _storage, *, now):
+        calls.append("publish")
+        if outcome["publish_error"]:
+            raise cli.PublishError(outcome["publish_error"])
+        return PublishSummary(season=2026, latest_week=2, files_written=7)
+
+    monkeypatch.setattr(cli, "_run_dbt_build", fake_dbt)
+    monkeypatch.setattr(cli, "publish", fake_publish)
+    return calls, outcome
+
+
+def serve_players(fake_host):
+    fake_host.serve_timestamp("players", "t1")
+    fake_host.serve(f"{BASE}/players/players.parquet", body=make_parquet())
+
+
+def test_run_ingests_then_builds_then_publishes_in_order(fake_host, steps, capsys):
+    calls, _ = steps
+    serve_players(fake_host)
+
+    code = cli.main(["run", "--datasets", "players"])
+
+    assert code == 0
+    assert calls == ["dbt", "publish"]
+    assert "published season 2026 through week 2 (7 files)" in capsys.readouterr().out
+
+
+def test_run_stops_before_dbt_when_the_ingest_fails(fake_host, steps, capsys, monkeypatch):
+    calls, _ = steps
+    monkeypatch.setenv("MAX_ATTEMPTS", "1")
+    fake_host.serve(f"{BASE}/players/players.parquet", status=500)
+
+    code = cli.main(["run", "--datasets", "players"])
+
+    assert code == 1
+    assert calls == []  # neither dbt nor publish ran
+    assert "the ingest failed" in capsys.readouterr().err
+
+
+def test_run_does_not_publish_when_dbt_tests_fail(fake_host, steps, capsys):
+    calls, outcome = steps
+    outcome["dbt"] = 1
+    serve_players(fake_host)
+
+    code = cli.main(["run", "--datasets", "players"])
+
+    assert code == 1
+    assert calls == ["dbt"]  # publish never ran
+    assert "nothing was published" in capsys.readouterr().err
+
+
+def test_run_reports_a_failed_publish(fake_host, steps, capsys):
+    _, outcome = steps
+    outcome["publish_error"] = "validation failed"
+    serve_players(fake_host)
+
+    code = cli.main(["run", "--datasets", "players"])
+
+    assert code == 1
+    assert "publish failed: validation failed" in capsys.readouterr().err
+
+
+def test_run_refuses_non_local_storage_for_now(fake_host, steps, capsys, monkeypatch):
+    calls, _ = steps
+    monkeypatch.setenv("STORAGE_BACKEND", "s3")
+
+    code = cli.main(["run"])
+
+    assert code == 2
+    assert calls == []
+    assert "STORAGE_BACKEND=local" in capsys.readouterr().err
+
+
+def test_publish_command_reports_a_missing_warehouse(fake_host, capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("WAREHOUSE_PATH", str(tmp_path / "missing.duckdb"))
+
+    code = cli.main(["publish"])
+
+    assert code == 1
+    assert "warehouse not found" in capsys.readouterr().err
