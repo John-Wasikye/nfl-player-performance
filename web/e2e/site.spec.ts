@@ -265,6 +265,20 @@ test.describe("Methodology and About", () => {
   });
 });
 
+test.describe("Author credit", () => {
+  for (const path of ["/", "/rankings/QB/", "/about/"]) {
+    test(`${path} says who built the site and links to their other projects`, async ({ page }) => {
+      await page.goto(path);
+      const footer = page.getByRole("contentinfo");
+
+      await expect(footer.getByText("John Wasikye")).toBeVisible();
+      const link = footer.getByRole("link", { name: /See my other projects/ });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", /.+/);
+    });
+  }
+});
+
 test.describe("Theme", () => {
   test("switches to dark, remembers the choice, and switches back", async ({ page }) => {
     await page.goto("/");

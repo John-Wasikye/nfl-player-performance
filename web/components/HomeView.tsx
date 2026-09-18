@@ -158,7 +158,7 @@ export function HomeView() {
     <div className="rise space-y-12">
       <section className="pt-4 sm:pt-8">
         <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-          NFL player rankings, updated every day.
+          NFL player rankings
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted">
           A composite performance score and fantasy points for every quarterback, running back,

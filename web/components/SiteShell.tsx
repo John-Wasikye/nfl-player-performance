@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { isStale, timeAgo } from "@/lib/format";
+import { BuiltBy } from "./BuiltBy";
 import { MetaProvider, useMeta } from "./MetaContext";
 import { SearchDialog } from "./SearchDialog";
 import { ThemeToggle } from "./ThemeToggle";
@@ -33,7 +34,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
         </Link>
         <nav
           aria-label="Primary"
-          className="order-last -mx-1 flex w-full items-center gap-1 overflow-x-auto pb-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:overflow-visible sm:pb-0"
+          className="order-last -mx-1 flex w-full items-center gap-2 overflow-x-auto px-1 pb-3 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:overflow-visible sm:px-0 sm:pb-0"
         >
           {NAV.map((item) => {
             const current = item.match(pathname);
@@ -43,8 +44,10 @@ function Header({ onSearch }: { onSearch: () => void }) {
                 href={item.href}
                 aria-current={current ? "page" : undefined}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium",
-                  current ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
+                  "inline-flex h-9 shrink-0 items-center rounded-lg border px-3.5 text-sm font-medium shadow-sm transition-colors",
+                  current
+                    ? "border-fg bg-fg text-bg"
+                    : "border-fg/20 bg-surface text-fg hover:border-fg/40 hover:bg-surface-2",
                 )}
               >
                 {item.label}
@@ -57,7 +60,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
           type="button"
           onClick={onSearch}
           aria-label="Search players"
-          className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm text-muted hover:text-fg"
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-fg/20 bg-surface px-3 text-sm text-fg shadow-sm transition-colors hover:border-fg/40 hover:bg-surface-2"
         >
           <SearchIcon width={15} height={15} />
           <span className="hidden sm:inline">Search</span>
@@ -97,7 +100,8 @@ function StaleBanner() {
 function Footer() {
   return (
     <footer className="mt-16 border-t border-line">
-      <div className="mx-auto max-w-6xl space-y-2 px-4 py-8 text-sm text-muted sm:px-6">
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-8 text-sm text-muted sm:px-6">
+        <BuiltBy />
         <p>
           Data from{" "}
           <a className="underline underline-offset-2 hover:text-fg" href="https://github.com/nflverse/nflverse-data">
