@@ -20,6 +20,7 @@ import duckdb
 from pydantic import ValidationError
 
 from nfl_pipeline import __version__
+from nfl_pipeline.backtest import summary_for_methodology
 from nfl_pipeline.contract import (
     POSITIONS,
     SCHEMA_VERSION,
@@ -43,6 +44,7 @@ from nfl_pipeline.storage import Storage
 logger = logging.getLogger("nfl_pipeline.publish")
 
 DEFAULT_PREFIX = "published/v1"
+BACKTEST_KEY = "backtest/summary.json"
 MOVERS_PER_POSITION = 5
 
 # The fewest ranked players we accept per position in the latest week. Far below a normal week;
@@ -134,7 +136,19 @@ def _sort_key(player: RankedPlayer) -> tuple:
     return (1, player.fantasy.rank)
 
 
-def _methodology(connection: duckdb.DuckDBPyConnection) -> Methodology:
+def _backtest_summary(storage: Storage) -> dict | None:
+    """Headline backtest numbers for the methodology page, if a backtest has been run."""
+    raw = storage.get_bytes(BACKTEST_KEY)
+    if not raw:
+        return None
+    try:
+        return summary_for_methodology(json.loads(raw))
+    except (KeyError, TypeError, ValueError) as error:
+        logger.warning("ignoring an unreadable backtest summary: %s", error)
+        return None
+
+
+def _methodology(connection: duckdb.DuckDBPyConnection, storage: Storage) -> Methodology:
     config = _rows(connection, "select * from ranking_config order by position_group")
     weights = _rows(connection, "select * from ranking_weights order by position_group, metric")
     positions = []
@@ -163,7 +177,7 @@ def _methodology(connection: duckdb.DuckDBPyConnection) -> Methodology:
         schema_version=SCHEMA_VERSION,
         positions=positions,
         kicker_scoring=KICKER_SCORING,
-        backtest=None,
+        backtest=_backtest_summary(storage),
     )
 
 
@@ -360,7 +374,7 @@ def build_files(
         )
 
     try:
-        files[f"{prefix}/methodology.json"] = _json(_methodology(connection))
+        files[f"{prefix}/methodology.json"] = _json(_methodology(connection, storage))
     except duckdb.Error as error:
         problems.append(f"could not read the ranking settings: {error}")
 

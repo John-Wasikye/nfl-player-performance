@@ -340,3 +340,52 @@ def test_the_contract_rejects_unknown_fields_and_bad_values():
                 "week_complete": True, "players": [],
             }
         )  # fmt: skip
+
+
+def test_methodology_includes_the_backtest_headline_when_one_has_been_run(warehouse, lake):
+    lake.put_bytes(
+        "backtest/summary.json",
+        json.dumps(
+            {
+                "generated_at": "2026-09-18T00:00:00+00:00",
+                "seasons": {"tune": [2021, 2022], "test": [2023]},
+                "selected_efficiency_weight": 0.2,
+                "current_efficiency_weight": 0.7,
+                "results": {
+                    "points": {
+                        "test": {
+                            method: {
+                                "positions": {
+                                    position: {"spearman": value} for position in POSITIONS
+                                }
+                            }
+                            for method, value in (
+                                ("composite_020", 0.30),
+                                ("composite_070", 0.22),
+                                ("ppr_per_game", 0.31),
+                            )
+                        }
+                    }
+                },
+            }
+        ).encode(),
+    )
+
+    publish(warehouse, lake, now=NOW)
+
+    backtest = read_json(lake, "methodology.json")["backtest"]
+    assert backtest["selected_efficiency_weight"] == 0.2
+    assert backtest["held_out_seasons"] == [2023]
+    assert backtest["held_out_spearman"]["QB"] == {
+        "selected": 0.30,
+        "current": 0.22,
+        "points_per_game_baseline": 0.31,
+    }
+
+
+def test_an_unreadable_backtest_summary_is_ignored_not_fatal(warehouse, lake):
+    lake.put_bytes("backtest/summary.json", b"not json at all")
+
+    publish(warehouse, lake, now=NOW)
+
+    assert read_json(lake, "methodology.json")["backtest"] is None

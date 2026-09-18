@@ -8,15 +8,19 @@ nfl-pipeline run       ingest, then dbt build (models and tests), then publish
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import subprocess
 import sys
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from pathlib import Path
 
+import duckdb
 import httpx
 
+from nfl_pipeline.backtest import render_report, run_backtest
 from nfl_pipeline.config import Settings, build_storage
 from nfl_pipeline.datasets import DATASETS, resolve_files
 from nfl_pipeline.ingest import ingest
@@ -46,6 +50,12 @@ def build_parser() -> argparse.ArgumentParser:
         commands.add_parser("ingest", help="download nflverse files into raw storage")
     )
     commands.add_parser("publish", help="validate the rankings and write the published JSON")
+    backtest = commands.add_parser(
+        "backtest", help="score the rankings against what happened the following week"
+    )
+    backtest.add_argument(
+        "--report", default="docs/backtest.md", help="where to write the Markdown report"
+    )
     add_ingest_options(
         commands.add_parser("run", help="ingest, build the dbt models and tests, then publish")
     )
@@ -112,6 +122,28 @@ def _run_publish(settings: Settings, now: datetime) -> int:
     return 0
 
 
+def _run_backtest(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
+    try:
+        summary = run_backtest(settings.warehouse_path, now=now)
+    except (ValueError, OSError) as error:
+        print(f"backtest failed: {error}", file=sys.stderr)
+        return 1
+    except duckdb.Error as error:
+        print(f"backtest failed: could not read the warehouse ({error})", file=sys.stderr)
+        return 1
+    build_storage(settings).put_bytes(
+        "backtest/summary.json", json.dumps(summary, indent=2).encode("utf-8")
+    )
+    report = Path(args.report)
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text(render_report(summary), encoding="utf-8")
+    print(
+        f"backtest done: chose {summary['selected_efficiency_weight']:.0%} efficiency "
+        f"(current setting {summary['current_efficiency_weight']:.0%}); report at {report}"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -125,6 +157,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_ingest(args, settings, now)
     if args.command == "publish":
         return _run_publish(settings, now)
+    if args.command == "backtest":
+        return _run_backtest(args, settings, now)
 
     # "run": each step must succeed before the next one starts, so bad data is never published.
     if settings.storage_backend != "local":

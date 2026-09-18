@@ -3,8 +3,8 @@
 A data pipeline that pulls NFL stats every day, cleans and models them, and publishes position rankings
 (QB, RB, WR, TE, K) to a website. Later phases add weekly predictions that grade themselves, and a mobile app.
 
-**Status: in development.** Phase 1A steps 1-6 are done: ingest, dbt models with data quality tests,
-the position rankings, and the published JSON. Nothing is deployed yet, and there is no website yet.
+**Status: in development.** Phase 1A is done: ingest, dbt models with data quality tests, the position
+rankings, the published JSON, and a backtest. Nothing is deployed yet, and there is no website yet.
 
 ## What works today
 
@@ -26,6 +26,14 @@ nfl-pipeline run            # ingest -> dbt build (models + 116 tests) -> valida
    `data/published/v1/` (`meta.json` last). If validation fails, nothing is published.
 
 Rankings only use games through the week being ranked, so there is no lookahead.
+
+## Backtest
+
+`nfl-pipeline backtest` asks whether a player's rank at week N predicts what they do in week N+1, over
+past seasons (the setting is chosen on earlier seasons and confirmed on later, held-out ones). The report
+is in [docs/backtest.md](docs/backtest.md). In short: ranking with a high weight on efficiency predicts
+next week's fantasy points noticeably worse than ranking by fantasy points per game, and a mostly
+production-based composite roughly ties that simple baseline. See the report for the numbers and caveats.
 
 ## Quick start
 

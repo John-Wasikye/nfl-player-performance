@@ -28,15 +28,20 @@ select
     metrics.role_volume,
     metrics.is_qualified,
     metrics.ppr_points,
-    scores.efficiency_score,
-    scores.production_score,
+    round(scores.efficiency_score, 6) as efficiency_score,
+    round(scores.production_score, 6) as production_score,
     -- if a player somehow has only one component, score them on that one
-    case
-        when scores.efficiency_score is null then scores.production_score
-        when scores.production_score is null then scores.efficiency_score
-        else config.efficiency_weight * scores.efficiency_score
-            + config.production_weight * scores.production_score
-    end as composite_score
+    -- Rounded so that scores tied to 6 decimals are exact ties: without this, floating-point
+    -- summation order can flip the rank of two effectively tied players from one run to the next.
+    round(
+        case
+            when scores.efficiency_score is null then scores.production_score
+            when scores.production_score is null then scores.efficiency_score
+            else config.efficiency_weight * scores.efficiency_score
+                + config.production_weight * scores.production_score
+        end,
+        6
+    ) as composite_score
 from {{ ref('int_rank_metrics') }} as metrics
 inner join {{ ref('ranking_config') }} as config using (position_group)
 left join component_scores as scores using (season, week, player_id)

@@ -1,6 +1,17 @@
 version: 2
 
 models:
+  - name: int_weekly_fantasy_points
+    description: Fantasy points per player per week (PPR; standard kicker scoring).
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]
+    columns:
+      - name: fantasy_points_scored
+        data_tests: [not_null]
+
   - name: int_cumulative_stats
     description: Season-to-date totals for every ranked player and week (no lookahead).
     data_tests:

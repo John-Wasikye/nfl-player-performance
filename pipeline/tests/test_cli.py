@@ -174,3 +174,36 @@ def test_publish_command_reports_a_missing_warehouse(fake_host, capsys, monkeypa
 
     assert code == 1
     assert "warehouse not found" in capsys.readouterr().err
+
+
+# --- backtest -----------------------------------------------------------------------------------
+
+
+def test_backtest_writes_the_summary_and_a_report(tmp_path, monkeypatch, capsys):
+    from test_backtest import build_warehouse
+
+    warehouse = build_warehouse(tmp_path / "w.duckdb")
+    monkeypatch.setenv("WAREHOUSE_PATH", str(warehouse))
+    monkeypatch.setenv("STORAGE_BACKEND", "local")
+    monkeypatch.setenv("LOCAL_DATA_DIR", str(tmp_path / "data"))
+    report = tmp_path / "docs" / "backtest.md"
+
+    code = cli.main(["backtest", "--report", str(report)])
+
+    assert code == 0
+    assert "# Backtest" in report.read_text(encoding="utf-8")
+    assert (tmp_path / "data" / "backtest" / "summary.json").exists()
+    assert "backtest done" in capsys.readouterr().out
+
+
+def test_backtest_reports_a_warehouse_that_was_never_built(tmp_path, monkeypatch, capsys):
+    import duckdb
+
+    duckdb.connect(str(tmp_path / "w.duckdb")).close()
+    monkeypatch.setenv("WAREHOUSE_PATH", str(tmp_path / "w.duckdb"))
+    monkeypatch.setenv("LOCAL_DATA_DIR", str(tmp_path / "data"))
+
+    code = cli.main(["backtest", "--report", str(tmp_path / "r.md")])
+
+    assert code == 1
+    assert "backtest failed" in capsys.readouterr().err

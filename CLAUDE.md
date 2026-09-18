@@ -10,6 +10,8 @@ Follow its phase order (1A local pipeline, 1B website, 1C AWS, 1D predictions, 1
 - Tests: `.venv\Scripts\python -m pytest`
 - Lint and format: `.venv\Scripts\python -m ruff check .` and `.venv\Scripts\python -m ruff format .`
 - Whole pipeline locally (ingest, dbt build with tests, publish): `.venv\Scripts\nfl-pipeline run`
+- Backtest (needs a built warehouse; writes docs/backtest.md): `.venv\Scripts
+fl-pipeline backtest`
 - Just the ingest: `.venv\Scripts\nfl-pipeline ingest --datasets schedules`
 - dbt (from the repo root, with `.venv\Scripts` on PATH): `dbt build --project-dir dbt --profiles-dir dbt`.
   After changing a seed's columns, run `dbt seed --full-refresh` or the old columns stay.

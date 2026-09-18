@@ -8,22 +8,12 @@ with ranked_positions as (
 ),
 
 stat_lines as (
-    select
-        fct.*,
-        -- nflverse does not score kickers, so use common standard scoring: field goals are worth
-        -- 3 points (under 40 yards), 4 (40-49) or 5 (50+), extra points 1, and each miss -1.
-        case
-            when fct.position_group = 'K' then
-                3 * (coalesce(fct.fg_made_0_19, 0) + coalesce(fct.fg_made_20_29, 0)
-                    + coalesce(fct.fg_made_30_39, 0))
-                + 4 * coalesce(fct.fg_made_40_49, 0)
-                + 5 * (coalesce(fct.fg_made_50_59, 0) + coalesce(fct.fg_made_60_, 0))
-                + coalesce(fct.pat_made, 0)
-                - coalesce(fct.fg_missed, 0)
-                - coalesce(fct.pat_missed, 0)
-            else fct.fantasy_points_ppr
-        end as fantasy_points_scored
+    select fct.*, points.fantasy_points_scored
     from {{ ref('fct_player_week') }} as fct
+    inner join {{ ref('int_weekly_fantasy_points') }} as points
+        on fct.player_id = points.player_id
+        and fct.season = points.season
+        and fct.week = points.week
     where fct.season_type = 'REG'
         and fct.position_group in (select position_group from ranked_positions)
 ),
