@@ -80,6 +80,7 @@ from `quay.io`.
 ```
 pipeline/nfl_pipeline/   ingest, storage, publish, contract (published schema), CLI
 pipeline/tests/          tests: unit tests plus dbt integration tests (no network)
+web/                     the website (Next.js static export): pages, components, tests
 dbt/                     staging and mart models, ranking models, seeds, data quality tests
 Dockerfile               pipeline image (Python 3.12, non-root, includes the dbt project)
 docker-compose.yml       local stack: pipeline-local, plus MinIO for object-storage tests

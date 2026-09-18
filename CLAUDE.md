@@ -18,6 +18,10 @@ fl-pipeline backtest`
 - Docker stack (MinIO plus the pipeline): `docker compose up -d minio minio-init`, then
   `docker compose run --rm pipeline ingest --datasets schedules`
 
+- Website (from `web/`): `npm run dev` (syncs published data first), `npm run lint`, `npm run typecheck`,
+  `npm test`, `npm run test:e2e`. Read `web/AGENTS.md`: this Next.js version differs from older ones, so check
+  `web/node_modules/next/dist/docs/` before changing framework-level code.
+
 ## Conventions
 
 - Python 3.10+ locally, 3.12 in Docker. Keep code compatible with 3.10.
@@ -29,3 +33,6 @@ fl-pipeline backtest`
 - The published JSON is a contract (`contract.py`); changing it means bumping `SCHEMA_VERSION`.
 - Only pull data from nflverse's published release files, never from NFL.com. No player headshots.
 - Rankings use current-season data only; past seasons feed the backtest and the phase 1D predictions.
+- Website: static export, data fetched in the browser from `/data/v1`. Avatars are initials on team colors
+  (no photos or logos). Keep `web/lib/types.ts` in step with `pipeline/nfl_pipeline/contract.py`.
+- Website tests must not depend on live data: e2e uses `web/e2e/fixtures`.

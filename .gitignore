@@ -30,3 +30,13 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
+
+# web
+web/node_modules/
+web/.next/
+web/out/
+web/public/data/
+web/test-results/
+web/playwright-report/
+web/next-env.d.ts
+web/tsconfig.tsbuildinfo
