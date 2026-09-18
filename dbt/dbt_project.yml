@@ -17,6 +17,8 @@ models:
       +materialized: table
     marts:
       +materialized: table
+    rankings:
+      +materialized: table
 
 seeds:
   nfl:

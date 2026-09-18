@@ -24,3 +24,52 @@ seeds:
     columns:
       - name: position
         data_tests: [unique, not_null]
+
+  - name: ranking_config
+    description: Per-position ranking settings. The backtest tunes these.
+    columns:
+      - name: position_group
+        data_tests: [unique, not_null]
+      - name: min_role_per_week
+        description: >
+          Minimum role per week played (QB attempts, RB carries + targets, WR/TE targets, K kicks)
+          to be ranked. The requirement grows with the week, so a few good plays never rank a
+          player high late in the season.
+        data_tests: [not_null]
+      - name: efficiency_weight
+        data_tests: [not_null]
+      - name: production_weight
+        data_tests: [not_null]
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: abs(efficiency_weight + production_weight - 1) < 0.000001
+
+  - name: ranking_weights
+    description: Which metrics feed each position's score, and how much each one counts.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [position_group, metric]
+    columns:
+      - name: position_group
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('ranking_config')
+                field: position_group
+      - name: component
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [efficiency, production]
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [higher, lower]
+      - name: weight
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: weight > 0

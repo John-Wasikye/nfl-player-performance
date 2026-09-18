@@ -1,0 +1,99 @@
+version: 2
+
+models:
+  - name: int_cumulative_stats
+    description: Season-to-date totals for every ranked player and week (no lookahead).
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [season, week, player_id]
+
+  - name: int_rank_metrics
+    description: Ranking metrics computed from season-to-date totals.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [season, week, player_id]
+    columns:
+      - name: is_qualified
+        data_tests: [not_null]
+
+  - name: int_rank_percentiles
+    description: Metric percentiles among qualified players at the same position and week.
+    columns:
+      - name: percentile
+        data_tests:
+          - not_null
+          - expression_is_true:
+              arguments:
+                expression: percentile between 0 and 1
+
+  - name: mart_rankings
+    description: >
+      Weekly snapshot of the position rankings (composite score and PPR fantasy points),
+      with rank movement versus the previous week.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [season, week, position_group, player_id]
+      # Only qualified players are ranked and scored.
+      - expression_is_true:
+          arguments:
+            expression: is_qualified = (composite_rank is not null)
+      - expression_is_true:
+          arguments:
+            expression: is_qualified or composite_score is null
+      # Movement is the previous rank minus the current rank.
+      - expression_is_true:
+          arguments:
+            expression: composite_movement = composite_rank_prev - composite_rank
+            where: composite_rank_prev is not null and composite_rank is not null
+      - expression_is_true:
+          arguments:
+            expression: fantasy_movement = fantasy_rank_prev - fantasy_rank
+            where: fantasy_rank_prev is not null
+    columns:
+      - name: position_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [QB, RB, WR, TE, K]
+      - name: composite_score
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: composite_score between 0 and 100
+      - name: efficiency_score
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: efficiency_score between 0 and 100
+      - name: production_score
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: production_score between 0 and 100
+      - name: fantasy_rank
+        data_tests: [not_null]
+      - name: player_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+
+  - name: mart_ranking_breakdown
+    description: Per-metric explanation of each composite score.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [season, week, player_id, metric]
+    columns:
+      - name: percentile
+        data_tests:
+          - expression_is_true:
+              arguments:
+                expression: percentile between 0 and 1
