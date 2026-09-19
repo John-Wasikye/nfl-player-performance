@@ -1,0 +1,109 @@
+"""The experiment ledger: every change that was tried, and what the gate decided.
+
+Published in full, including the failures. That is the point of it. A page showing only the changes
+that worked would suggest a system that improves whenever it is touched, when the truth measured in
+this project is the opposite: most ideas that sound good lose to a simple average, and the value is
+in having a referee that says so cheaply.
+
+The ledger is append-only for the same reason the weekly predictions are locked. A record of what
+was decided is worth nothing if a later run can rewrite it once the outcome is known.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+
+from nfl_pipeline.contract import LedgerEntry
+
+logger = logging.getLogger("nfl_pipeline.predict.ledger")
+
+
+@dataclass
+class Ledger:
+    """Every graded experiment, oldest first."""
+
+    path: Path
+    entries: list[LedgerEntry]
+
+    @classmethod
+    def load(cls, path: Path) -> Ledger:
+        path = Path(path)
+        if not path.exists():
+            return cls(path=path, entries=[])
+        payload = json.loads(path.read_text("utf-8"))
+        return cls(path=path, entries=[LedgerEntry(**row) for row in payload["entries"]])
+
+    def record(
+        self,
+        entry_id: str,
+        hypothesis: str,
+        change: str,
+        decision: dict,
+        proposed_at: str | None = None,
+    ) -> LedgerEntry:
+        """Append one decision, straight from `promotion_decision`.
+
+        Recording the same `entry_id` twice raises. An experiment has one outcome; if it is run again
+        it is a new experiment and gets a new id, so that a result cannot be quietly replaced by a
+        luckier re-run of the same idea.
+        """
+        if any(e.entry_id == entry_id for e in self.entries):
+            raise ValueError(
+                f"{entry_id} is already in the ledger. Re-running an experiment makes it a new "
+                "entry; an existing result is never overwritten."
+            )
+        entry = LedgerEntry(
+            entry_id=entry_id,
+            proposed_at=proposed_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            hypothesis=hypothesis,
+            change=change,
+            champion_mae=decision["champion_mae"],
+            challenger_mae=decision["challenger_mae"],
+            improvement=decision["improvement"],
+            promoted=decision["promote"],
+            reason=decision["reason"],
+        )
+        self.entries.append(entry)
+        logger.info(
+            "ledger: %s %s (%s)",
+            entry_id,
+            "promoted" if entry.promoted else "rejected",
+            entry.reason,
+        )
+        return entry
+
+    def save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(
+            json.dumps({"entries": [e.model_dump() for e in self.entries]}, indent=2),
+            encoding="utf-8",
+        )
+
+    @property
+    def promoted(self) -> list[LedgerEntry]:
+        return [e for e in self.entries if e.promoted]
+
+    @property
+    def rejected(self) -> list[LedgerEntry]:
+        return [e for e in self.entries if not e.promoted]
+
+    def summary(self) -> str:
+        """One plain sentence for the site, built only from the counts."""
+        if not self.entries:
+            return "No experiments have been graded yet."
+        tried, kept = len(self.entries), len(self.promoted)
+        if kept == 0:
+            return (
+                f"{tried} changes have been tested and none beat the current model. "
+                "Nothing shipped, which is the system working as intended."
+            )
+        gain = sum(e.improvement for e in self.promoted)
+        return (
+            f"{tried} changes tested, {kept} kept. The ones that survived cut the average error by "
+            f"{gain:.3f} fantasy points in total; the other {tried - kept} were rejected and are "
+            "listed below with their numbers."
+        )
