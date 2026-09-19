@@ -18,7 +18,11 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from nfl_pipeline.predict.models import PredictionModel, baseline_predictions
+from nfl_pipeline.predict.models import (
+    MIN_RECENT_SCORING,
+    PredictionModel,
+    baseline_predictions,
+)
 
 # A week needs enough players to produce a meaningful weekly score.
 MIN_PLAYERS_PER_WEEK = 30
@@ -154,9 +158,11 @@ def walk_forward(
                 )
             )
             graded.append(
-                current[["player_id", "season", "week", "position_group", "actual_ppr"]].assign(
-                    points=points, low=low, high=high
-                )
+                current[
+                    # `ppr_mean5` is carried so the published population can be identified after
+                    # the replay, without re-reading the feature store.
+                    ["player_id", "season", "week", "position_group", "actual_ppr", "ppr_mean5"]
+                ].assign(points=points, low=low, high=high)
             )
 
     if not result.weeks:
@@ -166,7 +172,10 @@ def walk_forward(
 
 
 def promotion_decision(
-    champion: BacktestResult, challenger: BacktestResult, margin: float = PROMOTION_MARGIN
+    champion: BacktestResult,
+    challenger: BacktestResult,
+    margin: float = PROMOTION_MARGIN,
+    paired: dict | None = None,
 ) -> dict:
     """Should the challenger replace the champion?
 
@@ -175,9 +184,19 @@ def promotion_decision(
     """
     improvement = champion.mae - challenger.mae
     coverage_ok = 0.75 <= challenger.coverage <= 0.85
-    promote = improvement > margin and coverage_ok
+    # When the paired evidence is available it has to agree. An improvement smaller than about two
+    # of its own standard errors is not distinguishable from chance however large the margin looks,
+    # and the fixed margin alone cannot tell the difference.
+    consistent = paired is None or abs(paired["standard_errors_from_zero"]) >= 2.0
+    promote = improvement > margin and coverage_ok and consistent
     if promote:
         reason = f"beats the champion by {improvement:.3f} mean absolute error"
+    elif improvement > margin and coverage_ok and not consistent:
+        reason = (
+            f"{improvement:.3f} better, but only "
+            f"{paired['standard_errors_from_zero']:.1f} standard errors from zero across "
+            f"{paired['player_games']:,} player-games, so it is not distinguishable from chance"
+        )
     elif not coverage_ok:
         reason = (
             f"interval coverage {challenger.coverage:.3f} is outside the acceptable "
@@ -195,4 +214,76 @@ def promotion_decision(
         "improvement": round(improvement, 4),
         "challenger_coverage": round(challenger.coverage, 4),
         "margin": margin,
+        "paired": paired,
+    }
+
+
+@dataclass
+class PublishedScore:
+    """A replay's accuracy over the players the site actually shows.
+
+    The harness trains and replays over everyone, which is right: throwing away training data made
+    the model worse (research section 5.15). But the product is judged on the roughly two thirds of
+    players with a real enough role to be published, and a change should be judged the same way.
+    Scoring a candidate over the whole population dilutes it — an idea that helps exactly the
+    players on the site and does nothing for a deep-bench receiver would look two thirds as good as
+    it is.
+
+    Duck-typed to what `promotion_decision` reads, so it can be passed in place of a raw result.
+    """
+
+    mae: float
+    coverage: float
+    player_games: int
+    predictions: pd.DataFrame
+
+
+def score_on_published(result: BacktestResult) -> PublishedScore:
+    """Re-score a completed replay over the published population only."""
+    rows = result.predictions
+    published = rows[rows.ppr_mean5.fillna(0) >= MIN_RECENT_SCORING]
+    if published.empty:
+        raise ValueError("no graded rows survived the published-population filter")
+    actual = published.actual_ppr.to_numpy()
+    return PublishedScore(
+        mae=float(np.mean(np.abs(actual - published.points.to_numpy()))),
+        coverage=float(np.mean((actual >= published.low) & (actual <= published.high))),
+        player_games=len(published),
+        predictions=published,
+    )
+
+
+def paired_evidence(champion: PublishedScore, challenger: PublishedScore) -> dict:
+    """How consistent the improvement is, using the fact that both saw identical rows.
+
+    Comparing two mean absolute errors throws that away. The same player-week appears on both
+    sides, so the difference can be taken per row, and the spread of those differences says
+    directly whether an improvement is distinguishable from noise — something a fixed margin can
+    only approximate.
+
+    The mean of the paired differences equals the difference of the two MAEs exactly, so this adds
+    a standard error to a number the gate already uses rather than replacing it.
+    """
+    key = ["player_id", "season", "week"]
+    merged = champion.predictions[[*key, "actual_ppr", "points"]].merge(
+        challenger.predictions[[*key, "points"]], on=key, suffixes=("_champion", "_challenger")
+    )
+    if merged.empty:
+        raise ValueError("champion and challenger share no graded rows, so they cannot be compared")
+
+    actual = merged.actual_ppr.to_numpy()
+    # Positive means the challenger was closer on that row.
+    difference = np.abs(actual - merged.points_champion.to_numpy()) - np.abs(
+        actual - merged.points_challenger.to_numpy()
+    )
+    mean = float(np.mean(difference))
+    standard_error = float(np.std(difference, ddof=1) / np.sqrt(len(difference)))
+    return {
+        "player_games": len(difference),
+        "mean_improvement": round(mean, 4),
+        "standard_error": round(standard_error, 4),
+        # How many times the mean improvement is its own standard error. Under 2 is not
+        # distinguishable from chance at the usual threshold.
+        "standard_errors_from_zero": round(mean / standard_error, 2) if standard_error else 0.0,
+        "rows_improved": int(np.sum(difference > 0)),
     }

@@ -549,3 +549,113 @@ def test_players_ruled_out_are_left_out_of_the_published_week():
     predictions = predict_week(features, season=2024, week=18)
 
     assert benched not in set(predictions.rows.player_id)
+
+
+# ---------------------------------------------------------------- judged on what we publish
+
+
+def published_frame(n: int = 600, champion_noise: float = 4.0, challenger_noise: float = 4.0):
+    """Two sets of predictions over the same rows, half of them below the publishing threshold."""
+    rng = np.random.default_rng(5)
+    form = np.concatenate([rng.uniform(0, 3.5, n // 2), rng.uniform(6, 20, n // 2)])
+    actual = np.maximum(form + rng.normal(0, 5, n), 0)
+    frame = pd.DataFrame(
+        {
+            "player_id": [f"P{i:04d}" for i in range(n)],
+            "season": 2025,
+            "week": 7,
+            "position_group": "WR",
+            "actual_ppr": actual,
+            "ppr_mean5": form,
+            "low": actual - 12,
+            "high": actual + 12,
+        }
+    )
+    champion = frame.assign(points=actual + rng.normal(0, champion_noise, n))
+    challenger = frame.assign(points=actual + rng.normal(0, challenger_noise, n))
+    return champion, challenger
+
+
+def as_result(predictions: pd.DataFrame):
+    from nfl_pipeline.predict.backtest import BacktestResult
+
+    result = BacktestResult()
+    result.predictions = predictions
+    return result
+
+
+def test_scoring_covers_only_the_players_the_site_publishes():
+    """Judging a change over players it will never affect dilutes it."""
+    from nfl_pipeline.predict.backtest import score_on_published
+
+    champion, _ = published_frame()
+
+    scored = score_on_published(as_result(champion))
+
+    assert scored.player_games == 300
+    assert (scored.predictions.ppr_mean5 >= 4.0).all()
+
+
+def test_the_paired_mean_equals_the_difference_of_the_two_error_rates():
+    """The pairing adds a standard error to a number the gate already used, not a new number."""
+    from nfl_pipeline.predict.backtest import paired_evidence, score_on_published
+
+    champion, challenger = published_frame(challenger_noise=2.0)
+    a, b = score_on_published(as_result(champion)), score_on_published(as_result(challenger))
+
+    evidence = paired_evidence(a, b)
+
+    assert evidence["mean_improvement"] == pytest.approx(a.mae - b.mae, abs=1e-4)
+    assert evidence["standard_error"] > 0
+
+
+def test_an_improvement_inside_its_own_noise_is_rejected_however_big_the_margin_looks():
+    """A fixed margin cannot tell a real gain from a lucky one; the paired spread can."""
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    noisy = {
+        "player_games": 300,
+        "mean_improvement": 0.2,
+        "standard_error": 0.4,
+        "standard_errors_from_zero": 0.5,
+        "rows_improved": 150,
+    }
+
+    decision = promotion_decision(FakeResult(4.70), FakeResult(4.50), paired=noisy)
+
+    assert decision["promote"] is False
+    assert "not distinguishable from chance" in decision["reason"]
+
+
+def test_a_consistent_improvement_is_still_promoted():
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    solid = {
+        "player_games": 8000,
+        "mean_improvement": 0.2,
+        "standard_error": 0.04,
+        "standard_errors_from_zero": 5.0,
+        "rows_improved": 4600,
+    }
+
+    decision = promotion_decision(FakeResult(4.70), FakeResult(4.50), paired=solid)
+
+    assert decision["promote"] is True
+
+
+def test_the_gate_still_works_without_paired_evidence():
+    """The older callers pass none, and must keep behaving exactly as before."""
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    assert promotion_decision(FakeResult(4.70), FakeResult(4.50))["promote"] is True
+
+
+def test_comparing_results_with_no_shared_rows_is_an_error():
+    from nfl_pipeline.predict.backtest import paired_evidence, score_on_published
+
+    champion, challenger = published_frame()
+    challenger = challenger.assign(player_id=challenger.player_id + "_other")
+    a, b = score_on_published(as_result(champion)), score_on_published(as_result(challenger))
+
+    with pytest.raises(ValueError, match="share no graded rows"):
+        paired_evidence(a, b)

@@ -25,7 +25,12 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from nfl_pipeline.predict.backtest import promotion_decision, walk_forward
+from nfl_pipeline.predict.backtest import (
+    paired_evidence,
+    promotion_decision,
+    score_on_published,
+    walk_forward,
+)
 from nfl_pipeline.predict.models import PredictionModel
 
 logger = logging.getLogger("nfl_pipeline.predict.candidates")
@@ -94,24 +99,29 @@ def evaluate(
     Both runs see the same rows and the same weeks. The only difference is the extra columns, which
     is the whole point: anything else moving would make the comparison meaningless.
 
-    Known limitation, worth fixing before this loop has decided much. The comparison is scored on
-    every trainable player-week, but the site publishes only the players in `PredictionModel.
-    eligible` — roughly two thirds of them. A candidate that helps exactly the players we publish
-    and does nothing for the rest would therefore have its effect diluted here, and could be
-    rejected for being small when it was not. The comparison is still fair, because both sides are
-    scored on identical rows; it is just measured over a wider population than the one being judged
-    on the Report card.
+    Both sides replay the whole population, because training on everyone is what the evidence
+    supports, but they are *scored* on the players the site actually publishes. Those are different
+    questions and were once conflated here: a candidate that helped exactly the published players
+    and did nothing for a deep-bench receiver would have looked about two thirds as good as it was.
+
+    Because the two sides see identical rows, the improvement also gets a standard error from the
+    per-row paired differences, which says whether it is distinguishable from chance rather than
+    only whether it clears a fixed number.
     """
     _reject_forbidden_reads(candidate, features)
 
     enriched = candidate.apply(features)
-    champion = walk_forward(features, test_seasons=test_seasons)
-    challenger = walk_forward(
-        enriched,
-        test_seasons=test_seasons,
-        model_factory=_with_extra_columns(candidate.adds),
+    champion = score_on_published(walk_forward(features, test_seasons=test_seasons))
+    challenger = score_on_published(
+        walk_forward(
+            enriched,
+            test_seasons=test_seasons,
+            model_factory=_with_extra_columns(candidate.adds),
+        )
     )
-    decision = promotion_decision(champion, challenger)
+    decision = promotion_decision(
+        champion, challenger, paired=paired_evidence(champion, challenger)
+    )
     logger.info(
         "candidate %s: %s (%s)",
         candidate.name,
@@ -123,8 +133,12 @@ def evaluate(
         hypothesis=candidate.hypothesis,
         adds=candidate.adds,
         decision=decision,
-        champion=champion.summary(),
-        challenger=challenger.summary(),
+        champion={"mae": round(champion.mae, 4), "player_games": champion.player_games},
+        challenger={
+            "mae": round(challenger.mae, 4),
+            "player_games": challenger.player_games,
+            "interval_coverage": round(challenger.coverage, 4),
+        },
     )
 
 
