@@ -258,6 +258,12 @@ def build_raw_lake(root: Path, *, stats: list[dict] | None = None) -> None:
     )
 
 
+# The fixture lake below carries the core datasets only, so the models that read play-by-play,
+# participation, advanced stats or charting are excluded here. Those are covered by the real
+# `dbt build` against the full lake; these tests are about the cleaning and ranking logic.
+FIXTURELESS = "stg_pbp_plays+ stg_participation+ stg_advstats+ stg_ftn_charting+"
+
+
 def run_dbt(tmp_path: Path, *args: str) -> subprocess.CompletedProcess:
     env = {
         **os.environ,
@@ -266,6 +272,8 @@ def run_dbt(tmp_path: Path, *args: str) -> subprocess.CompletedProcess:
         "DBT_TARGET_PATH": str(tmp_path / "target"),
         "DBT_LOG_PATH": str(tmp_path / "logs"),
     }
+    if args and args[0] in {"build", "run"}:
+        args = (*args, "--exclude", FIXTURELESS)
     command = [
         sys.executable,
         "-c",

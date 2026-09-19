@@ -78,3 +78,37 @@ models:
       - unique_combination:
           arguments:
             columns: [player_id, season, week]
+
+  - name: stg_pbp_plays
+    description: The play-by-play columns other models need, so nothing else reads the 372-column raw file.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [game_id, play_id]
+
+  - name: stg_participation
+    description: >
+      One row per player per offensive snap (2016-2025 only; nflverse does not publish this for the
+      current season, so anything built on it must tolerate missing weeks).
+    data_tests:
+      - not_empty
+    columns:
+      - name: player_id
+        data_tests: [not_null]
+
+  - name: stg_advstats
+    description: Pro Football Reference weekly advanced stats, the three player files combined.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [season, week, pfr_player_id]
+
+  - name: stg_ftn_charting
+    description: FTN manual play charting (2022 onward) - how a play was designed, not how it ended.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [game_id, play_id]

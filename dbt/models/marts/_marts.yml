@@ -109,3 +109,34 @@ models:
           - expression_is_true:
               arguments:
                 expression: offense_pct between 0 and 1
+
+  - name: fct_player_week_advanced
+    description: >
+      One row per player-week of the richer signals the box score misses: snap and pass-snap counts
+      (a routes-run proxy), usage rates, advanced efficiency, and the team's play style. Coverage
+      varies by source, so every measure is optional - participation stops at 2025, charting starts
+      at 2022. This is the raw material for the feature discovery loop.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]
+      - expression_is_true:
+          arguments:
+            expression: pass_snaps <= snaps
+            where: pass_snaps is not null
+      - expression_is_true:
+          arguments:
+            expression: snap_share between 0 and 1.0001
+            where: snap_share is not null
+      - expression_is_true:
+          arguments:
+            expression: target_per_pass_snap between 0 and 1.0001
+            where: target_per_pass_snap is not null
+    columns:
+      - name: player_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id

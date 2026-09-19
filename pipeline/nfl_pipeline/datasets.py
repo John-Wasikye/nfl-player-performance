@@ -69,6 +69,24 @@ DATASETS: dict[str, Dataset] = {
             "weekly_rosters", "weekly_rosters", "roster_weekly_{season}.parquet", per_season=True
         ),
         Dataset("depth_charts", "depth_charts", "depth_charts_{season}.parquet", per_season=True),
+        # Richer sources for the prediction engine: per-play participation (who was on the field),
+        # Pro Football Reference weekly advanced stats, and FTN's play charting.
+        Dataset(
+            "participation",
+            "pbp_participation",
+            "pbp_participation_{season}.parquet",
+            per_season=True,
+        ),
+        Dataset(
+            "advstats_pass", "pfr_advstats", "advstats_week_pass_{season}.parquet", per_season=True
+        ),
+        Dataset(
+            "advstats_rush", "pfr_advstats", "advstats_week_rush_{season}.parquet", per_season=True
+        ),
+        Dataset(
+            "advstats_rec", "pfr_advstats", "advstats_week_rec_{season}.parquet", per_season=True
+        ),
+        Dataset("ftn_charting", "ftn_charting", "ftn_charting_{season}.parquet", per_season=True),
     )
 }
 

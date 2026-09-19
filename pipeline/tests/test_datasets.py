@@ -41,3 +41,20 @@ def test_none_selects_every_dataset():
 def test_unknown_dataset_is_rejected_with_the_known_names():
     with pytest.raises(ValueError, match="unknown dataset.*nope.*known:"):
         resolve_files(["nope"], [2026])
+
+
+def test_the_prediction_datasets_are_registered():
+    """The prediction engine needs participation, advanced stats and charting."""
+    for name in ("participation", "advstats_pass", "advstats_rush", "advstats_rec", "ftn_charting"):
+        assert name in DATASETS, name
+        (file,) = resolve_files([name], [2024])
+        assert "2024" in file.filename
+        assert file.season == 2024
+
+
+def test_advanced_stats_share_one_release_but_are_separate_files():
+    """All three PFR weekly files live under the same release tag, so they share a timestamp."""
+    files = resolve_files(["advstats_pass", "advstats_rush", "advstats_rec"], [2024])
+
+    assert {f.release_tag for f in files} == {"pfr_advstats"}
+    assert len({f.filename for f in files}) == 3
