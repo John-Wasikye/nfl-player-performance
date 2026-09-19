@@ -112,3 +112,14 @@ models:
       - unique_combination:
           arguments:
             columns: [game_id, play_id]
+
+  - name: stg_ngs
+    description: >
+      Next Gen Stats: tracking-derived measures (separation, air yards share, rushing yards over
+      expected, completion percentage over expected). Refreshed during the season, so unlike
+      participation these are available for live predictions.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]

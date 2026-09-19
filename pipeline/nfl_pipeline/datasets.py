@@ -87,6 +87,12 @@ DATASETS: dict[str, Dataset] = {
             "advstats_rec", "pfr_advstats", "advstats_week_rec_{season}.parquet", per_season=True
         ),
         Dataset("ftn_charting", "ftn_charting", "ftn_charting_{season}.parquet", per_season=True),
+        # Next Gen Stats: tracking-derived measures (separation, air yards share, rushing yards over
+        # expected, completion percentage over expected). One file per area covering all seasons,
+        # and unlike participation it is updated during the season.
+        Dataset("ngs_receiving", "nextgen_stats", "ngs_receiving.parquet", per_season=False),
+        Dataset("ngs_rushing", "nextgen_stats", "ngs_rushing.parquet", per_season=False),
+        Dataset("ngs_passing", "nextgen_stats", "ngs_passing.parquet", per_season=False),
     )
 }
 

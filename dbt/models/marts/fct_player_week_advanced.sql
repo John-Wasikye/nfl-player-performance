@@ -6,6 +6,7 @@
 --   participation  2016-2025 (not published for the current season)
 --   advanced stats 2018 onward, including the current season
 --   FTN charting   2022 onward, including the current season
+--   Next Gen Stats 2016 onward, including the current season (refreshed weekly)
 with snaps as (
     select
         p.player_id,
@@ -94,6 +95,17 @@ select
     advanced.times_blitzed,
     advanced.passing_bad_throw_pct,
 
+    ngs.avg_separation,
+    ngs.avg_cushion,
+    ngs.avg_target_depth,
+    ngs.air_yards_share_ngs,
+    ngs.avg_yac_above_expectation,
+    ngs.pct_vs_stacked_box,
+    ngs.rush_yards_over_expected,
+    ngs.rush_yards_over_expected_per_att,
+    ngs.avg_time_to_throw,
+    ngs.completion_percentage_above_expectation,
+
     team_style.play_action_rate,
     team_style.no_huddle_rate,
     team_style.motion_rate,
@@ -104,6 +116,7 @@ left join snaps using (player_id, season, week)
 left join team_snaps on fct.season = team_snaps.season
     and fct.week = team_snaps.week and fct.team = team_snaps.team
 left join advanced using (player_id, season, week)
+left join {{ ref('stg_ngs') }} as ngs using (player_id, season, week)
 left join team_style on fct.season = team_style.season
     and fct.week = team_style.week and fct.team = team_style.team
 where fct.season_type = 'REG'
