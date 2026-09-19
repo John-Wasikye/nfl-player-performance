@@ -97,6 +97,38 @@ def stat_line(player_id, name, position, team, **overrides):
     return line
 
 
+def write_weekly_rosters(root: Path, players: list[tuple[str, str, str]], weeks=(1,), season=2026):
+    """Who is on each team in each week: (player_id, position, team) per entry.
+
+    Not optional. The feature store builds the upcoming week from this file rather than from who
+    has recently played, because stats data cannot tell "has not played lately" apart from "is not
+    on the team" and the old inference kept projecting retired players.
+    """
+    write_parquet(
+        root,
+        "weekly_rosters",
+        [
+            {
+                "gsis_id": player_id,
+                "season": season,
+                "week": week,
+                "team": team,
+                "position": position,
+                "depth_chart_position": position,
+                "status": "ACT",
+                "full_name": player_id,
+                "first_name": player_id,
+                "last_name": player_id,
+                "game_type": "REG",
+                "years_exp": 5,
+            }
+            for week in weeks
+            for player_id, position, team in players
+        ],
+        season=season,
+    )
+
+
 def write_advanced_sources(root: Path) -> None:
     """Minimal files for the richer sources, so the full model graph builds in tests.
 
@@ -366,6 +398,7 @@ def build_raw_lake(root: Path, *, stats: list[dict] | None = None) -> None:
         ("P2", "Will Receiver", "WR", "OAK", "PFR2"),
         ("P3", "Kim Kicker", "K", "KC", "PFR3"),
     ]
+    write_weekly_rosters(root, [(p[0], p[2], p[3]) for p in players], weeks=(1, 2))
     write_parquet(
         root,
         "players",
@@ -602,6 +635,9 @@ def test_impossible_stats_fail_the_data_quality_tests(tmp_path):
 def build_ranking_lake(root: Path, week2_epa: dict[str, float]) -> None:
     """Three quarterbacks over two weeks. Week 1 EPA is fixed; week 2 EPA is a parameter."""
     write_advanced_sources(root)
+    write_weekly_rosters(
+        root, [(f"Q{i}", "QB", "KC") for i in range(1, 6)], weeks=(1, 2)
+    )
     week1_epa = {"Q1": 10.0, "Q2": 5.0, "Q3": 0.0}
     names = {"Q1": "Quinn One", "Q2": "Quinn Two", "Q3": "Quinn Three", "Q4": "Quinn Four"}
     games = []
@@ -861,6 +897,7 @@ def test_a_team_that_has_not_played_this_week_is_not_penalized(tmp_path):
 def build_leakage_lake(root: Path, weekly_points: dict[int, float]) -> None:
     """One quarterback across three weeks, scoring whatever `weekly_points` says."""
     write_advanced_sources(root)
+    write_weekly_rosters(root, [("Q1", "QB", "KC")], weeks=(1, 2, 3))
     games = [
         {
             "game_id": f"2026_0{week}_AAA_BBB", "season": 2026, "game_type": "REG", "week": week,

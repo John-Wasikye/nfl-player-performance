@@ -60,27 +60,33 @@ next_week as (
     group by season
 ),
 
--- Who is on each team for that week. Taken as each player's most recent team, which early in a
--- season means last season's team until he appears in this one. Bounded to roughly a season of
--- inactivity so that retired players stop appearing.
+-- Who is on each team for that week, from the published roster for that exact week.
+--
+-- An earlier version inferred this from who had played recently, and it was wrong in a way worth
+-- recording: "has not appeared in a box score lately" and "is not on the team" are indistinguishable
+-- in stats data, so retired players kept being projected. Philip Rivers, whose last game was in
+-- 2025, was being projected for 2026 because the recency bound compared `season * 100 + week`
+-- values, and that is not a distance — the gap from 2025 week 17 to 2026 week 2 came out as 85,
+-- smaller than the 120 the rule allowed, so an entire offseason counted as no time at all.
+--
+-- The roster file answers the question directly and needs no arithmetic. Only active players are
+-- projected: a practice-squad player can be elevated but has no expected role, and anyone on
+-- reserve, retired or released should not appear at all.
 current_roster as (
-    select player_id, position_group, team
-    from (
-        select
-            player_id,
-            position_group,
-            team,
-            row_number() over (
-                partition by player_id order by season desc, week desc
-            ) as recency,
-            max(season * 100 + week) over () as latest_played,
-            season * 100 + week as played
-        from {{ ref('fct_player_week') }}
-        where season_type = 'REG'
-          and position_group in ('QB', 'RB', 'WR', 'TE', 'K')
-    )
-    where recency = 1
-      and latest_played - played < 120  -- about one season of weeks, in the season*100+week scale
+    select
+        roster.player_id,
+        roster.team,
+        position.position_group
+    from {{ ref('stg_weekly_rosters') }} as roster
+    inner join next_week
+        on roster.season = next_week.season
+        and roster.week = next_week.week
+    -- The roster's own position field is spelled differently from the one the rest of the project
+    -- uses, so the grouping comes from the player dimension, which is where that mapping lives.
+    inner join {{ ref('dim_player') }} as position
+        on position.player_id = roster.player_id
+    where roster.is_active
+      and position.position_group in ('QB', 'RB', 'WR', 'TE', 'K')
 ),
 
 -- One row per player in that week's fixtures, with no statistics at all. Everything these rows
