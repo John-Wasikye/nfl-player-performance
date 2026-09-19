@@ -147,6 +147,91 @@ class Methodology(Model):
     backtest: dict | None  # filled in once the backtest exists
 
 
+# --- predictions ---------------------------------------------------------------------------------
+# Added with the prediction engine. Every published projection carries its range and the chance the
+# player takes the field, because a bare number would overstate what is knowable: the measured
+# ceiling for a single game is about 7% better than simply averaging a player's recent scores.
+
+
+class PredictedPlayer(Model):
+    player_id: str
+    name: str
+    team: str
+    opponent: str
+    is_home: bool
+    position: Position
+    points: float = Field(ge=0)
+    low: float = Field(ge=0)
+    high: float = Field(ge=0)
+    # For a player who might not play: their score if they do, and the chance they do.
+    probability_of_playing: float = Field(ge=0, le=1)
+    expected_points: float = Field(ge=0)
+    injury_status: str | None
+    # "locked" once the prediction can no longer change; "preliminary" before that.
+    status: Literal["preliminary", "locked"]
+    locked_at: str | None
+
+
+class PredictionsFile(Model):
+    """predictions/{season}/{week}/{position}.json"""
+
+    schema_version: int
+    season: int
+    week: int
+    position: Position
+    generated_at: str
+    model_version: str
+    players: list[PredictedPlayer]
+
+
+class GradedWeek(Model):
+    """How one week's locked predictions actually did, against the baselines they must beat."""
+
+    season: int
+    week: int
+    player_games: int
+    mae: float
+    rmse: float
+    interval_coverage: float
+    baseline_mae: dict[str, float]
+    # The control line: a model frozen before the season, so "it is improving" is checkable.
+    frozen_model_mae: float | None
+
+
+class AccuracyFile(Model):
+    """accuracy/{season}.json - the Report card's data."""
+
+    schema_version: int
+    season: int
+    generated_at: str
+    weeks: list[GradedWeek]
+    season_to_date: GradedWeek | None
+    # Plain-language verdict built only from the numbers above.
+    verdict: str
+
+
+class LedgerEntry(Model):
+    """One graded experiment: what was tried, what happened, and what was decided."""
+
+    entry_id: str
+    proposed_at: str
+    hypothesis: str
+    change: str
+    champion_mae: float
+    challenger_mae: float
+    improvement: float
+    promoted: bool
+    reason: str
+
+
+class LedgerFile(Model):
+    """ledger.json - every experiment, including the failures, published as run."""
+
+    schema_version: int
+    generated_at: str
+    entries: list[LedgerEntry]
+
+
 class Meta(Model):
     """meta.json: written last, so it only ever points at a complete set of files."""
 

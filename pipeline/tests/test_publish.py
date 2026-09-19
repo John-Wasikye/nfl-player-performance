@@ -389,3 +389,96 @@ def test_an_unreadable_backtest_summary_is_ignored_not_fatal(warehouse, lake):
     publish(warehouse, lake, now=NOW)
 
     assert read_json(lake, "methodology.json")["backtest"] is None
+
+
+# --- the prediction contract ---------------------------------------------------------------------
+
+
+def test_a_prediction_must_carry_its_range_and_availability():
+    from nfl_pipeline.contract import PredictedPlayer
+
+    player = PredictedPlayer.model_validate(
+        {
+            "player_id": "P1", "name": "A Player", "team": "KC", "opponent": "LV",
+            "is_home": True, "position": "WR", "points": 12.0, "low": 4.0, "high": 22.0,
+            "probability_of_playing": 0.65, "expected_points": 7.8,
+            "injury_status": "Questionable", "status": "locked",
+            "locked_at": "2026-09-20T17:00:00+00:00",
+        }
+    )  # fmt: skip
+
+    assert player.expected_points == pytest.approx(
+        player.points * player.probability_of_playing, abs=0.1
+    )
+
+
+def test_a_prediction_cannot_be_negative_or_claim_impossible_odds():
+    from pydantic import ValidationError as PydanticError
+
+    from nfl_pipeline.contract import PredictedPlayer
+
+    base = {
+        "player_id": "P1", "name": "A", "team": "KC", "opponent": "LV", "is_home": True,
+        "position": "WR", "points": 12.0, "low": 4.0, "high": 22.0,
+        "probability_of_playing": 0.65, "expected_points": 7.8, "injury_status": None,
+        "status": "locked", "locked_at": None,
+    }  # fmt: skip
+
+    with pytest.raises(PydanticError):
+        PredictedPlayer.model_validate({**base, "points": -1.0})
+    with pytest.raises(PydanticError):
+        PredictedPlayer.model_validate({**base, "probability_of_playing": 1.5})
+
+
+def test_a_prediction_is_either_preliminary_or_locked():
+    from pydantic import ValidationError as PydanticError
+
+    from nfl_pipeline.contract import PredictedPlayer
+
+    base = {
+        "player_id": "P1", "name": "A", "team": "KC", "opponent": "LV", "is_home": True,
+        "position": "WR", "points": 12.0, "low": 4.0, "high": 22.0,
+        "probability_of_playing": 1.0, "expected_points": 12.0, "injury_status": None,
+        "locked_at": None,
+    }  # fmt: skip
+
+    with pytest.raises(PydanticError):
+        PredictedPlayer.model_validate({**base, "status": "maybe"})
+
+
+def test_the_report_card_keeps_a_frozen_model_control_line():
+    """Without a control, 'the AI is learning' is unfalsifiable."""
+    from nfl_pipeline.contract import GradedWeek
+
+    week = GradedWeek.model_validate(
+        {
+            "season": 2026, "week": 3, "player_games": 180, "mae": 4.4,
+            "rmse": 6.0, "interval_coverage": 0.79,
+            "baseline_mae": {"last_ten": 4.5}, "frozen_model_mae": 4.48,
+        }
+    )  # fmt: skip
+
+    assert week.frozen_model_mae is not None
+
+
+def test_the_ledger_records_failures_as_well_as_wins():
+    from nfl_pipeline.contract import LedgerFile
+
+    ledger = LedgerFile.model_validate(
+        {
+            "schema_version": 1,
+            "generated_at": "2026-09-20T12:00:00+00:00",
+            "entries": [
+                {
+                    "entry_id": "2026-w03-a", "proposed_at": "2026-09-20T12:00:00+00:00",
+                    "hypothesis": "Snap share trend should help running backs.",
+                    "change": "added snap_share_trend3", "champion_mae": 4.45,
+                    "challenger_mae": 4.47, "improvement": -0.02, "promoted": False,
+                    "reason": "worse than the champion by 0.020",
+                }
+            ],
+        }
+    )  # fmt: skip
+
+    assert ledger.entries[0].promoted is False
+    assert ledger.entries[0].improvement < 0
