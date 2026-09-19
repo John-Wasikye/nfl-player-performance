@@ -38,10 +38,7 @@ export function PredictionMethodologyView() {
 
       <div className="mt-8 space-y-12">
         <section>
-          <SectionTitle
-            title="The short version"
-            description="Four sentences, if you read nothing else."
-          />
+          <SectionTitle title="Summary" />
           <Card className="p-6">
             <ol className="list-decimal space-y-2 pl-5 text-pretty">
               <li>
@@ -65,10 +62,7 @@ export function PredictionMethodologyView() {
         </section>
 
         <section>
-          <SectionTitle
-            title="What happens each week"
-            description="The order matters more than it looks."
-          />
+          <SectionTitle title="The weekly cycle" />
           <WeeklyCycleDiagram />
           <p className="text-muted">
             The step that does the work is the lock. Once a week&apos;s projections are written to
@@ -84,8 +78,8 @@ export function PredictionMethodologyView() {
 
         <section>
           <SectionTitle
-            title="Where the number comes from"
-            description="Two ordinary models, averaged. No magic."
+            title="How a projection is produced"
+            description="A regularized linear model and gradient boosting, averaged."
           />
           <ModelDiagram />
           <div className="space-y-3 text-muted">
@@ -101,17 +95,18 @@ export function PredictionMethodologyView() {
               Their answers are averaged.
             </p>
             <p className="text-fg">
-              We tried more complicated approaches and they did not help. The limit here is the sport,
-              not the software: single-game fantasy scoring is close to a coin toss dressed up in
-              numbers, and no model reads a coin toss.
+              More elaborate approaches were tested and did not improve on this. The constraint is
+              the sport rather than the algorithm: a regularized linear model reached 0.280
+              held-out R-squared, gradient boosting 0.288, and their average 0.289, against 0.232
+              for a plain recent average.
             </p>
           </div>
         </section>
 
         <section>
           <SectionTitle
-            title="Why there is always a range"
-            description="This is the part most projection sites leave out."
+            title="Prediction intervals"
+            description="Quantile models with a split-conformal correction."
           />
           <RangeDiagram />
           <div className="space-y-3 text-muted">
@@ -132,8 +127,8 @@ export function PredictionMethodologyView() {
 
         <section>
           <SectionTitle
-            title="Who gets a projection, and who does not"
-            description="Not everyone should have one."
+            title="Which players are projected"
+            description="Training, calibration and publication use deliberately different populations."
           />
           <PopulationDiagram />
           <div className="space-y-3 text-muted">
@@ -159,8 +154,8 @@ export function PredictionMethodologyView() {
 
         <section>
           <SectionTitle
-            title="How it gets better, and why it cannot get worse"
-            description="The part people usually just assert."
+            title="The promotion gate"
+            description="How a change is adopted, and why published accuracy cannot regress."
           />
           <LearningLoopDiagram />
           <div className="space-y-3 text-muted">
@@ -185,24 +180,23 @@ export function PredictionMethodologyView() {
 
         <section>
           <SectionTitle
-            title="How good can this realistically get?"
-            description="We measured the ceiling before building anything."
+            title="The achievable ceiling"
+            description="Measured before the engine was built."
           />
           <CeilingDiagram />
           <p className="text-muted">
-            This is worth being blunt about. Suppose you had a crystal ball that told you each
-            player&apos;s true season-long average before the season started. That is far more than
-            any model can know. It would still be wrong by about five fantasy points a game, because
-            single games are dominated by things nobody can forecast: a tipped pass, a goal-line
-            call, a fumble. The entire gap between this model and that crystal ball is under 7%.
-            Anyone promising dramatically more than that is not measuring.
+            An oracle given each player&apos;s true season-long average in advance — more than any
+            model can know — would still be wrong by about five fantasy points a game, because a
+            single game is dominated by events that are not forecastable: a tipped pass, a
+            goal-line decision, a fumble. The remaining gap between this engine and that bound is
+            under 7%, which is the honest budget for any future improvement.
           </p>
         </section>
 
         <section>
-          <SectionTitle title="Honest limitations" description="Things this cannot do." />
+          <SectionTitle title="Limitations" />
           <Card className="px-6 py-2">
-            <Q q="It cannot predict a breakout game.">
+            <Q q="It targets the conditional mean, not the tail.">
               <p>
                 The biggest misses are almost always players who scored far more than expected. A
                 model aims at the most likely outcome, and a 34-point game from someone averaging 8
@@ -210,21 +204,21 @@ export function PredictionMethodologyView() {
                 lives.
               </p>
             </Q>
-            <Q q="It does not know anything that is not in the data.">
+            <Q q="It only sees what is in the data.">
               <p>
                 A coach saying something in a press conference, a player&apos;s personal
                 circumstances, a scheme change nobody has recorded yet: none of that reaches the
                 model. It sees box scores, schedules, injury reports and betting lines.
               </p>
             </Q>
-            <Q q="Late scratches are not its fault, and are not counted against it.">
+            <Q q="Late scratches are measured separately.">
               <p>
                 If a player is ruled out ninety minutes before kickoff, that is an availability
                 question, not a scoring one. Those are tracked separately rather than graded as
                 missed projections.
               </p>
             </Q>
-            <Q q="Early in a season it knows less.">
+            <Q q="Accuracy is weakest early in a season.">
               <p>
                 Projections lean on recent form, and in week 1 there is very little of it. Accuracy
                 against the simple baseline is widest early and narrows as the season goes on.
@@ -234,11 +228,8 @@ export function PredictionMethodologyView() {
         </section>
 
         <section>
-          <SectionTitle
-            title="Check it yourself"
-            description="The whole point of publishing the record."
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <SectionTitle title="Verify it" />
+          <div className="grid gap-4 sm:grid-cols-3">
             <Card className="p-6">
               <h3 className="font-semibold">The Report card</h3>
               <p className="mt-1.5 text-sm text-muted">
@@ -250,6 +241,19 @@ export function PredictionMethodologyView() {
                 className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
               >
                 See the record
+              </Link>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-semibold">The research paper</h3>
+              <p className="mt-1.5 text-sm text-muted">
+                Sixteen studies on six seasons, written before any prediction code existed,
+                including the ones whose results ruled out the original design.
+              </p>
+              <Link
+                href="/research/"
+                className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
+              >
+                Read the evidence
               </Link>
             </Card>
             <Card className="p-6">

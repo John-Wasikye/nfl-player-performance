@@ -18,6 +18,7 @@ const NAV = [
   { href: "/predictions/QB/", label: "Projections", match: (p: string) => p.startsWith("/predictions") },
   { href: "/report-card/", label: "Report card", match: (p: string) => p.startsWith("/report-card") },
   { href: "/methodology/", label: "Methodology", match: (p: string) => p.startsWith("/methodology") },
+  { href: "/research/", label: "Research", match: (p: string) => p.startsWith("/research") },
   { href: "/about/", label: "About", match: (p: string) => p.startsWith("/about") },
 ];
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "data": "node scripts/sync-data.mjs",
+    "data": "node scripts/sync-data.mjs && node scripts/build-research.mjs",
     "dev": "npm run data && next dev",
     "build": "next build",
     "serve": "node scripts/serve-static.mjs out",
@@ -11,7 +11,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "research": "node scripts/build-research.mjs"
   },
   "dependencies": {
     "next": "16.3.5",
@@ -32,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "jsdom": "^30.1.0",
+    "marked": "^18.0.13",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.1"

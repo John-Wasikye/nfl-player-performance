@@ -18,11 +18,21 @@ const PAGES = [
     label: "How the predictions work",
     blurb: "Projecting what happens next",
   },
+  {
+    key: "research",
+    href: "/research/",
+    label: "Research paper",
+    blurb: "The full evidence, 8,700 words",
+  },
 ] as const;
 
-export function MethodologySwitch({ active }: { active: "rankings" | "predictions" }) {
+export function MethodologySwitch({
+  active,
+}: {
+  active: "rankings" | "predictions" | "research";
+}) {
   return (
-    <nav aria-label="Methodology sections" className="grid gap-3 sm:grid-cols-2">
+    <nav aria-label="Methodology sections" className="grid gap-3 sm:grid-cols-3">
       {PAGES.map((page) => {
         const current = page.key === active;
         return (

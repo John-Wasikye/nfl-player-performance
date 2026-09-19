@@ -127,8 +127,8 @@ test.describe("Methodology", () => {
   test("it is honest about what the model cannot do", async ({ page }) => {
     await page.goto("/methodology/predictions/");
 
-    await expect(page.getByText("It cannot predict a breakout game.")).toBeVisible();
-    await expect(page.getByText(/entire gap between this model and that crystal ball/)).toBeVisible();
+    await expect(page.getByText("It targets the conditional mean, not the tail.")).toBeVisible();
+    await expect(page.getByText(/remaining gap between this engine and that bound/)).toBeVisible();
   });
 });
 
@@ -140,5 +140,37 @@ test.describe("Home", () => {
       "NFL player rankings and predictions",
     );
     await expect(page.getByRole("region", { name: /projections/i })).toBeVisible();
+  });
+});
+
+
+test.describe("Research paper", () => {
+  test("the paper is served as real content, not fetched later", async ({ page }) => {
+    // JavaScript disabled: the paper must still be there, because it is the substance of the site.
+    await page.context().addInitScript(() => {});
+    const response = await page.goto("/research/");
+    const html = (await response?.text()) ?? "";
+
+    expect(html).toContain("Predicting Weekly NFL Player Performance");
+    expect(html).toContain("<table>");
+  });
+
+  test("long sections are navigable", async ({ page }) => {
+    await page.goto("/research/");
+
+    const contents = page.getByRole("navigation", { name: "Paper contents" });
+    await expect(contents).toBeVisible();
+    await contents.getByRole("link", { name: /Empirical studies/ }).click();
+
+    await expect(page).toHaveURL(/#5-empirical-studies/);
+  });
+
+  test("it carries the results that went against the original design", async ({ page }) => {
+    await page.goto("/research/");
+
+    await expect(page.getByText(/made predictions/).first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /Does the system get smarter week by week/ }),
+    ).toBeVisible();
   });
 });

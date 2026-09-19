@@ -144,10 +144,7 @@ export function MethodologyView() {
       <MethodologySwitch active="rankings" />
 
       <section aria-label="In plain English">
-        <SectionTitle
-          title="The short version"
-          description="Three sentences, if you read nothing else."
-        />
+        <SectionTitle title="Summary" />
         <Card className="p-6">
           <ol className="list-decimal space-y-2 pl-5 text-pretty">
             <li>

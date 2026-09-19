@@ -47,6 +47,11 @@ const PAGES: Array<{ name: string; path: string; ready: (page: Page) => Promise<
     ready: (page) => page.getByRole("table").first().waitFor(),
   },
   {
+    name: "research paper",
+    path: "/research/",
+    ready: (page) => page.getByRole("navigation", { name: "Paper contents" }).waitFor(),
+  },
+  {
     name: "methodology",
     path: "/methodology/",
     ready: (page) => page.getByRole("region", { name: "Backtest" }).waitFor(),
