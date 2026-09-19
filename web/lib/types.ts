@@ -175,6 +175,17 @@ export interface PredictedPlayer {
   locked_at: string | null;
 }
 
+/** predictions/latest.json — which week the Predictions page should show. */
+export interface PredictionsIndex {
+  schema_version: number;
+  generated_at: string;
+  season: number;
+  week: number;
+  positions: Position[];
+  status: "preliminary" | "locked";
+  locked_at: string | null;
+}
+
 export interface PredictionsFile {
   schema_version: number;
   season: number;

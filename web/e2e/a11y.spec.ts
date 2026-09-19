@@ -32,6 +32,16 @@ const PAGES: Array<{ name: string; path: string; ready: (page: Page) => Promise<
     ready: (page) => page.getByRole("heading", { name: "Why this rank" }).waitFor(),
   },
   {
+    name: "projections",
+    path: "/predictions/QB/",
+    ready: (page) => page.getByRole("listitem").first().waitFor(),
+  },
+  {
+    name: "report card",
+    path: "/report-card/",
+    ready: (page) => page.getByRole("table").first().waitFor(),
+  },
+  {
     name: "methodology",
     path: "/methodology/",
     ready: (page) => page.getByRole("region", { name: "Backtest" }).waitFor(),

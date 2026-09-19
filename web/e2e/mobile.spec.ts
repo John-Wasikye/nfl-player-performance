@@ -7,7 +7,15 @@ async function hasHorizontalOverflow(page: Page) {
 }
 
 test.describe("on a phone", () => {
-  for (const path of ["/", "/rankings/QB/", "/rankings/QB/?view=fantasy", "/methodology/", "/about/"]) {
+  for (const path of [
+    "/",
+    "/rankings/QB/",
+    "/rankings/QB/?view=fantasy",
+    "/predictions/QB/",
+    "/report-card/",
+    "/methodology/",
+    "/about/",
+  ]) {
     test(`${path} fits the screen without sideways scrolling`, async ({ page }) => {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
@@ -28,7 +36,7 @@ test.describe("on a phone", () => {
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
 
-    for (const name of ["Home", "Rankings", "Methodology", "About"]) {
+    for (const name of ["Home", "Rankings", "Projections", "Report card", "Methodology", "About"]) {
       await expect(nav.getByRole("link", { name })).toBeInViewport();
     }
     await expect(page.getByRole("button", { name: "Search players" })).toBeInViewport();

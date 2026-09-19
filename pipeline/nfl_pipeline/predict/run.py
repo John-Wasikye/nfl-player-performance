@@ -23,6 +23,7 @@ from nfl_pipeline.contract import (
     LedgerFile,
     PredictedPlayer,
     PredictionsFile,
+    PredictionsIndex,
 )
 from nfl_pipeline.predict.features import POSITIONS, load_features
 from nfl_pipeline.predict.ledger import Ledger
@@ -108,6 +109,7 @@ def publish_predictions(
 ) -> int:
     """One file per position, so the site fetches only what a page needs."""
     written = 0
+    covered: list[str] = []
     for position in POSITIONS:
         rows = published[published.position_group == position]
         if rows.empty:
@@ -142,6 +144,26 @@ def publish_predictions(
                 generated_at=now.isoformat(timespec="seconds"),
                 model_version=model_version,
                 players=players,
+            ),
+        )
+        written += 1
+        covered.append(position)
+
+    # Written last, and only over positions that actually have a file, so the site is never
+    # pointed at a week whose data is missing or half-written.
+    if covered:
+        row = published.iloc[0]
+        _write(
+            storage,
+            f"{PREDICTION_PREFIX}/latest.json",
+            PredictionsIndex(
+                schema_version=SCHEMA_VERSION,
+                generated_at=now.isoformat(timespec="seconds"),
+                season=season,
+                week=week,
+                positions=covered,
+                status=row.status,
+                locked_at=row.locked_at,
             ),
         )
         written += 1

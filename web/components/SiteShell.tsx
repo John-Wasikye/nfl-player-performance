@@ -14,6 +14,8 @@ import { AlertIcon, SearchIcon } from "./icons";
 const NAV = [
   { href: "/", label: "Home", match: (p: string) => p === "/" },
   { href: "/rankings/QB/", label: "Rankings", match: (p: string) => p.startsWith("/rankings") || p.startsWith("/player") },
+  { href: "/predictions/QB/", label: "Projections", match: (p: string) => p.startsWith("/predictions") },
+  { href: "/report-card/", label: "Report card", match: (p: string) => p.startsWith("/report-card") },
   { href: "/methodology/", label: "Methodology", match: (p: string) => p.startsWith("/methodology") },
   { href: "/about/", label: "About", match: (p: string) => p.startsWith("/about") },
 ];
@@ -22,8 +24,8 @@ function Header({ onSearch }: { onSearch: () => void }) {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 px-4 sm:h-14 sm:flex-nowrap sm:px-6">
-        <Link href="/" className="flex h-12 items-center gap-2 font-semibold tracking-tight sm:h-auto">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 px-4 sm:px-6 lg:h-14 lg:flex-nowrap">
+        <Link href="/" className="flex h-12 items-center gap-2 font-semibold tracking-tight lg:h-auto">
           <span
             aria-hidden="true"
             className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-xs font-bold text-accent-fg"
@@ -34,7 +36,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
         </Link>
         <nav
           aria-label="Primary"
-          className="order-last -mx-1 flex w-full items-center gap-2 overflow-x-auto px-1 pb-3 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:overflow-visible sm:px-0 sm:pb-0"
+          className="order-last -mx-1 flex w-full flex-wrap items-center gap-2 px-1 pb-3 lg:order-none lg:mx-0 lg:w-auto lg:flex-1 lg:flex-nowrap lg:pb-0"
         >
           {NAV.map((item) => {
             const current = item.match(pathname);
@@ -55,7 +57,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
             );
           })}
         </nav>
-        <span className="flex-1 sm:hidden" aria-hidden="true" />
+        <span className="flex-1 lg:hidden" aria-hidden="true" />
         <button
           type="button"
           onClick={onSearch}

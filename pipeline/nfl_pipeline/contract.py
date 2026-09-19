@@ -184,6 +184,24 @@ class PredictionsFile(Model):
     players: list[PredictedPlayer]
 
 
+class PredictionsIndex(Model):
+    """predictions/latest.json - which week the site should show.
+
+    A separate tiny file rather than a field on meta.json, because the rankings and the predictions
+    are published by different commands and are routinely about different weeks: the rankings
+    describe the last week played, while the predictions describe the next one. Folding both into
+    one file would mean either command could publish a meta.json that contradicted the other.
+    """
+
+    schema_version: int
+    generated_at: str
+    season: int
+    week: int
+    positions: list[Position]
+    status: Literal["preliminary", "locked"]
+    locked_at: str | None
+
+
 class GradedWeek(Model):
     """How one week's locked predictions actually did, against the baselines they must beat."""
 

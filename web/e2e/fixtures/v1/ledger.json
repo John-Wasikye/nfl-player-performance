@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-19T15:28:52+00:00",
+  "entries": [
+    {
+      "entry_id": "2026-j-publish-only-players-with-a-role",
+      "proposed_at": "2026-09-19T14:05:00+00:00",
+      "hypothesis": "The engine's 0.052 margin is diluted by low-volume players whose own recent average is already near-optimal, so restricting who is projected should raise the margin.",
+      "change": "Publish only players averaging at least 4 PPR points over their last five games. Chosen as the smallest cut-off clearing the 0.15 bar. The margin rises monotonically across all six scoring tiers, which is what makes this a mechanism rather than a tuned threshold.",
+      "champion_score": 0.052,
+      "challenger_score": 0.159,
+      "improvement": 0.107,
+      "promoted": true,
+      "reason": "margin over the baseline rose from 0.052 to 0.159 on 8,464 of 12,388 player-games, with coverage unchanged at 0.798. Judged on margin, not mean error: the two populations are different, and better players are more variable, so raw mean error rises (4.463 to 5.278) even though the model is doing more work",
+      "metric": "margin_over_baseline"
+    },
+    {
+      "entry_id": "2026-k-drop-low-volume-players-from-training-too",
+      "proposed_at": "2026-09-19T14:25:00+00:00",
+      "hypothesis": "If low-volume players are not worth publishing, the model may also learn better without them, because it would stop spending capacity on an easy near-zero regime.",
+      "change": "Exclude players below the publishing threshold from the training set as well.",
+      "champion_score": 5.266,
+      "challenger_score": 5.278,
+      "improvement": -0.012,
+      "promoted": false,
+      "reason": "the opposite was true: training on everyone scored 5.266 against 5.278 on identical graded rows, so the extra data helps. Rejected; the training population stays wide",
+      "metric": "mae"
+    },
+    {
+      "entry_id": "2026-l-calibrate-on-the-published-population",
+      "proposed_at": "2026-09-19T14:45:00+00:00",
+      "hypothesis": "Training wide dropped interval coverage to 0.778 because split conformal prediction requires the calibration set to be exchangeable with what is predicted, and low-volume players have artificially small errors. Calibrating on the published population should restore coverage without touching the point estimates.",
+      "change": "Filter the conformal calibration set to the publishable population.",
+      "champion_score": 5.2659,
+      "challenger_score": 5.2659,
+      "improvement": 0.0,
+      "promoted": true,
+      "reason": "coverage returned to 0.797 from 0.778 while mean error stayed identical to four decimal places, which is the check that it moved only the ranges and not the projections. Ranges are 0.3 points wider, as they should have been all along",
+      "metric": "mae"
+    }
+  ]
+}
