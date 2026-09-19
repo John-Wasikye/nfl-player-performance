@@ -94,6 +94,67 @@ function PlayerRow({ player, rank }: { player: PredictedPlayer; rank: number }) 
   );
 }
 
+
+/** Column labels. The numbers meant nothing without them. */
+function ColumnHeadings() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex items-center gap-3 border-b border-line px-4 py-2 text-xs font-medium text-muted"
+    >
+      <span className="w-6 shrink-0">#</span>
+      <span className="w-8 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">Player and matchup</span>
+      <span className="hidden w-44 shrink-0 text-center sm:block">
+        Range it could land in (80%)
+      </span>
+      <span className="w-20 shrink-0 text-right">Projected</span>
+    </div>
+  );
+}
+
+function Key() {
+  return (
+    <Card as="section" className="mb-4 p-4">
+      <h2 className="text-sm font-semibold">What the numbers mean</h2>
+      <dl className="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium">Projected</dt>
+          <dd className="text-muted">
+            The single most likely PPR fantasy score for this game.
+          </dd>
+        </div>
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium">Range</dt>
+          <dd className="text-muted">
+            Four games in five should land between these two numbers. The dot marks the projection
+            inside it.
+          </dd>
+        </div>
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium">% to play</dt>
+          <dd className="text-muted">
+            Shown only for players on the injury report. The projection above it assumes he plays.
+          </dd>
+        </div>
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium">Order</dt>
+          <dd className="text-muted">
+            Highest projected first, after discounting anyone who might not play.
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-xs text-muted">
+        PPR means one point per reception.{" "}
+        <Link href="/methodology/predictions/" className="text-accent underline underline-offset-2">
+          How these are produced
+        </Link>
+        .
+      </p>
+    </Card>
+  );
+}
+
 export function PredictionsView({ position }: { position: Position }) {
   const index = useJson<PredictionsIndex>("predictions/latest.json");
   const path = index.data
@@ -124,6 +185,12 @@ export function PredictionsView({ position }: { position: Position }) {
             <Link href="/report-card/" className="text-sm text-muted underline-offset-2 hover:underline">
               How accurate have these been?
             </Link>
+            <Link
+              href="/methodology/predictions/"
+              className="text-sm text-muted underline-offset-2 hover:underline"
+            >
+              How these are made
+            </Link>
           </div>
         )}
       </PageHeader>
@@ -138,13 +205,17 @@ export function PredictionsView({ position }: { position: Position }) {
           message={`No ${position} has enough recent playing time to project. Players with a very small role are left out on purpose: the model was measured doing worse than their own recent average, so a projection would be misleading.`}
         />
       ) : (
-        <Card as="section">
-          <ul>
-            {file.data.players.map((player, i) => (
-              <PlayerRow key={player.player_id} player={player} rank={i + 1} />
-            ))}
-          </ul>
-        </Card>
+        <>
+          <Key />
+          <Card as="section">
+            <ColumnHeadings />
+            <ul>
+              {file.data.players.map((player, i) => (
+                <PlayerRow key={player.player_id} player={player} rank={i + 1} />
+              ))}
+            </ul>
+          </Card>
+        </>
       )}
 
       <p className="mt-4 text-sm text-muted">

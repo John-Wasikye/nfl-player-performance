@@ -3,6 +3,8 @@
 import { useJson } from "@/lib/api";
 import { formatPercent, metricLabel } from "@/lib/format";
 import { POSITION_NAMES, type BacktestHeadline, type Methodology, type Position } from "@/lib/types";
+import { CompositeDiagram } from "./diagrams";
+import { MethodologySwitch } from "./MethodologySwitch";
 import { Badge, Card, ErrorState, PageHeader, SectionTitle, Skeleton } from "./ui";
 
 const fmt = (value: number | null) => (value === null ? "n/a" : value.toFixed(3));
@@ -136,9 +138,43 @@ export function MethodologyView() {
   return (
     <div className="rise space-y-12">
       <PageHeader
-        title="Methodology"
-        subtitle="How the composite score and the fantasy ranking are built, and how well they work."
+        title="How the rankings work"
+        subtitle="The rankings score what has already happened this season. This page explains how a player's composite score is put together, what each setting means, and how well the whole thing actually holds up when tested."
       />
+      <MethodologySwitch active="rankings" />
+
+      <section aria-label="In plain English">
+        <SectionTitle
+          title="The short version"
+          description="Three sentences, if you read nothing else."
+        />
+        <Card className="p-6">
+          <ol className="list-decimal space-y-2 pl-5 text-pretty">
+            <li>
+              Each player is measured on several statistics, and each one is turned into a score out
+              of 100 by comparing him with other players at the same position.
+            </li>
+            <li>
+              Those scores are grouped into how <strong className="text-fg">efficient</strong> he is
+              (how much he does per chance he gets) and how much he has{" "}
+              <strong className="text-fg">produced</strong> (raw totals), then blended into one
+              number.
+            </li>
+            <li>
+              This describes the season so far. It is <em>not</em> a prediction; for that, see{" "}
+              <a href="/methodology/predictions/" className="text-accent underline underline-offset-2">
+                how the predictions work
+              </a>
+              .
+            </li>
+          </ol>
+        </Card>
+        {data && data.positions.length > 0 && (
+          <CompositeDiagram
+            efficiency={Math.round(data.positions[0].efficiency_weight * 100)}
+          />
+        )}
+      </section>
 
       <section aria-label="Overview" className="grid gap-4 md:grid-cols-2">
         <Card className="p-6">

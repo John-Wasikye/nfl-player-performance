@@ -14,7 +14,12 @@ const PAGES: Array<{ name: string; path: string; ready: (page: Page) => Promise<
   {
     name: "home",
     path: "/",
-    ready: (page) => page.getByRole("heading", { level: 3, name: "Kickers" }).waitFor(),
+    // Both the projections and the rankings sections list every position, so this says which.
+    ready: (page) =>
+      page
+        .getByRole("region", { name: "Top players by position" })
+        .getByRole("heading", { level: 3, name: "Kickers" })
+        .waitFor(),
   },
   {
     name: "rankings (composite)",
@@ -78,7 +83,10 @@ for (const theme of ["light", "dark"] as const) {
 
 test("the search dialog is accessible when open", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("heading", { level: 3, name: "Kickers" }).waitFor();
+  await page
+    .getByRole("region", { name: "Top players by position" })
+    .getByRole("heading", { level: 3, name: "Kickers" })
+    .waitFor();
   await page.keyboard.press("/");
   await page.getByRole("dialog").getByRole("textbox").fill("allen");
   await page.getByRole("dialog").getByRole("link", { name: /Josh Allen/ }).waitFor();

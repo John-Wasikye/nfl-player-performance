@@ -1,4 +1,10 @@
-// Details about who made the site. Change them here and every credit on the site updates.
+// Details about the site and who made it. Change them here and every mention updates.
+export const SITE = {
+  name: "Player Performance and Predictions",
+  // The header has little room, so it shows this instead on narrow screens.
+  shortName: "Player Performance",
+};
+
 export const AUTHOR = {
   name: "John Wasikye",
   initials: "JW",

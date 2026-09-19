@@ -35,6 +35,14 @@ test.describe("Projections", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Tight ends projections");
   });
 
+  test("labels the columns, so the numbers are not bare", async ({ page }) => {
+    await page.goto("/predictions/QB/");
+
+    await expect(page.getByRole("heading", { name: "What the numbers mean" })).toBeVisible();
+    await expect(page.getByText("The single most likely PPR fantasy score")).toBeVisible();
+    await expect(page.getByText("Four games in five should land between")).toBeVisible();
+  });
+
   test("links to the accuracy record", async ({ page }) => {
     await page.goto("/predictions/QB/");
     await page.getByRole("link", { name: "How accurate have these been?" }).click();
@@ -89,5 +97,48 @@ test.describe("Report card", () => {
     await page.goto("/report-card/");
 
     await expect(page.getByText(/stricter selection raises this number/)).toBeVisible();
+  });
+});
+
+
+test.describe("Methodology", () => {
+  test("the rankings and the predictions are explained separately", async ({ page }) => {
+    await page.goto("/methodology/");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "How the rankings work" }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /How the predictions work/ }).first().click();
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "How the predictions work" }),
+    ).toBeVisible();
+  });
+
+  test("the prediction diagrams carry a text description, not just a picture", async ({ page }) => {
+    await page.goto("/methodology/predictions/");
+
+    // Each figure is an image with an accessible name, so it is not lost to a screen reader.
+    const figures = page.getByRole("img");
+    await expect(figures.first()).toBeVisible();
+    expect(await figures.count()).toBeGreaterThanOrEqual(6);
+  });
+
+  test("it is honest about what the model cannot do", async ({ page }) => {
+    await page.goto("/methodology/predictions/");
+
+    await expect(page.getByText("It cannot predict a breakout game.")).toBeVisible();
+    await expect(page.getByText(/entire gap between this model and that crystal ball/)).toBeVisible();
+  });
+});
+
+test.describe("Home", () => {
+  test("leads with both the rankings and the projections", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      "NFL player rankings and predictions",
+    );
+    await expect(page.getByRole("region", { name: /projections/i })).toBeVisible();
   });
 });

@@ -11,6 +11,8 @@ import {
   type MoversFile,
   type Mover,
   type Position,
+  type PredictionsFile,
+  type PredictionsIndex,
   type RankingsFile,
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -151,6 +153,98 @@ function TopFive({ meta, position }: { meta: Meta; position: Position }) {
   );
 }
 
+
+/** The top few projections at one position for the upcoming week. */
+function TopProjected({ index, position }: { index: PredictionsIndex; position: Position }) {
+  const { data, error, loading } = useJson<PredictionsFile>(
+    `predictions/${index.season}/${index.week}/${position}.json`,
+  );
+  const top = (data?.players ?? []).slice(0, 5);
+  return (
+    <Card as="article" className="p-4">
+      <div className="mb-2 flex items-center justify-between px-2">
+        <h3 className="font-semibold">{POSITION_NAMES[position]}</h3>
+        <Link
+          href={`/predictions/${position}/`}
+          className="inline-flex items-center gap-0.5 text-sm text-accent hover:underline"
+          aria-label={`See all ${POSITION_NAMES[position].toLowerCase()} projections`}
+        >
+          All <ChevronRightIcon width={14} height={14} />
+        </Link>
+      </div>
+      {error && <p className="px-2 py-6 text-sm text-muted">Couldn&apos;t load these projections.</p>}
+      {loading && <Skeleton className="h-40 w-full" />}
+      <ol>
+        {top.map((player, i) => (
+          <li
+            key={player.player_id}
+            className="flex items-center gap-3 rounded-xl px-2 py-2"
+          >
+            <span className="w-5 text-sm font-semibold text-muted tnum">{i + 1}</span>
+            <Avatar name={player.name} team={player.team} size={32} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{player.name}</span>
+              <span className="text-xs text-muted">
+                {player.team} {player.is_home ? "vs" : "at"} {player.opponent}
+              </span>
+            </span>
+            <span className="text-right">
+              <span className="block text-sm font-semibold tnum">
+                {player.points.toFixed(1)}
+              </span>
+              <span className="block text-xs text-muted tnum">
+                {player.low.toFixed(1)}&ndash;{player.high.toFixed(1)}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </Card>
+  );
+}
+
+/** The projections half of the home page. Hidden entirely if no week has been published. */
+function Projections() {
+  const { data: index } = useJson<PredictionsIndex>("predictions/latest.json");
+  if (!index) return null;
+  return (
+    <section aria-label="Next week's projections">
+      <SectionTitle
+        title={`Projected for week ${index.week}`}
+        description="The highest projected scores at each position, each with the range it sits in. A single number would claim more certainty than one game allows."
+        action={
+          <Badge tone={index.status === "locked" ? "accent" : "warn"}>
+            {index.status === "locked" ? "Locked before kickoff" : "Preliminary"}
+          </Badge>
+        }
+      />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {POSITIONS.map((position) => (
+          <TopProjected key={position} index={index} position={position} />
+        ))}
+        <Card as="article" className="flex flex-col justify-center gap-2 bg-accent-soft p-6">
+          <h3 className="font-semibold">How accurate are these?</h3>
+          <p className="text-sm text-muted">
+            Every projection is written down before kickoff and never changed, then graded against
+            what actually happened. The record is public, including the ideas that failed.
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link href="/report-card/" className="text-sm font-medium text-accent hover:underline">
+              See the record
+            </Link>
+            <Link
+              href="/methodology/predictions/"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              How it works
+            </Link>
+          </div>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
 export function HomeView() {
   const { data: meta, error, loading } = useMeta();
 
@@ -158,11 +252,14 @@ export function HomeView() {
     <div className="rise space-y-12">
       <section className="pt-4 sm:pt-8">
         <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-          NFL player rankings
+          NFL player rankings and predictions
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted">
-          A composite performance score and fantasy points for every quarterback, running back,
-          receiver, tight end, and kicker, with weekly rank movement.
+          Two things, kept separate on purpose. The{" "}
+          <strong className="font-semibold text-fg">rankings</strong> score what has already happened
+          this season. The <strong className="font-semibold text-fg">projections</strong> say what
+          each player is likely to do next, with an honest range and a public record of how often
+          they have been right.
         </p>
         {meta && <StatusPills meta={meta} />}
         {loading && <Skeleton className="mt-5 h-7 w-64" />}
@@ -174,10 +271,10 @@ export function HomeView() {
             Browse rankings
           </Link>
           <Link
-            href="/methodology/"
+            href="/predictions/QB/"
             className="rounded-xl border border-line bg-surface px-5 py-2.5 text-sm font-semibold hover:bg-surface-2"
           >
-            How the score works
+            See next week&apos;s projections
           </Link>
         </div>
       </section>
@@ -196,6 +293,7 @@ export function HomeView() {
       )}
       {meta && (
         <>
+          <Projections />
           <Movers meta={meta} />
           <section aria-label="Top players by position">
             <SectionTitle

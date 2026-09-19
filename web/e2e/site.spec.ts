@@ -12,8 +12,10 @@ test.describe("Home", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText("NFL player rankings");
     await expect(page.getByText(/2026 season · Week 2 in progress/)).toBeVisible();
     await expect(page.getByRole("region", { name: "Biggest movers" })).toBeVisible();
+    // Both the rankings and the projections sections list every position, so this has to say which.
+    const ranked = page.getByRole("region", { name: "Top players by position" });
     for (const name of ["Quarterbacks", "Running backs", "Wide receivers", "Tight ends", "Kickers"]) {
-      await expect(page.getByRole("heading", { level: 3, name })).toBeVisible();
+      await expect(ranked.getByRole("heading", { level: 3, name })).toBeVisible();
     }
   });
 
@@ -227,7 +229,9 @@ test.describe("Methodology and About", () => {
   test("methodology shows the settings and the backtest", async ({ page }) => {
     await page.goto("/methodology/");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Methodology" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "How the rankings work" }),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: "What counts at each position" })).toBeVisible();
     const backtest = page.getByRole("region", { name: "Backtest" });
     await expect(backtest.getByRole("row", { name: /^QB/ })).toBeVisible();

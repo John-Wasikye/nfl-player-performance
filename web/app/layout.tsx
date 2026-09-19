@@ -8,8 +8,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: {
-    default: "NFL Player Performance",
-    template: "%s | NFL Player Performance",
+    default: "NFL Player Performance and Predictions",
+    template: "%s | NFL Player Performance and Predictions",
   },
   description:
     "Daily-updated NFL player rankings by position: a composite performance score and fantasy points, with weekly rank movement.",

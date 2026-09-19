@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { SITE } from "@/lib/site";
 import { isStale, timeAgo } from "@/lib/format";
 import { BuiltBy } from "./BuiltBy";
 import { MetaProvider, useMeta } from "./MetaContext";
@@ -32,7 +33,8 @@ function Header({ onSearch }: { onSearch: () => void }) {
           >
             PP
           </span>
-          <span className="hidden sm:inline">Player Performance</span>
+          <span className="hidden sm:inline">{SITE.shortName}</span>
+          <span className="sr-only">{SITE.name}</span>
         </Link>
         <nav
           aria-label="Primary"

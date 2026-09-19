@@ -13,6 +13,7 @@ test.describe("on a phone", () => {
     "/rankings/QB/?view=fantasy",
     "/predictions/QB/",
     "/report-card/",
+    "/methodology/predictions/",
     "/methodology/",
     "/about/",
   ]) {
