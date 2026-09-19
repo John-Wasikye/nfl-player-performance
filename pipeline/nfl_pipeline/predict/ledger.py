@@ -47,9 +47,9 @@ class Ledger:
     ) -> LedgerEntry:
         """Append one decision, straight from `promotion_decision`.
 
-        Recording the same `entry_id` twice raises. An experiment has one outcome; if it is run again
-        it is a new experiment and gets a new id, so that a result cannot be quietly replaced by a
-        luckier re-run of the same idea.
+        Recording the same `entry_id` twice raises. An experiment has one outcome; running it
+        again makes it a new experiment with a new id, so a result cannot be quietly replaced
+        by a luckier re-run of the same idea.
         """
         if any(e.entry_id == entry_id for e in self.entries):
             raise ValueError(

@@ -20,6 +20,11 @@ class Settings:
     max_attempts: int = 3
     warehouse_path: Path = Path("data/warehouse.duckdb")  # the dbt DuckDB database
     dbt_dir: Path = Path("dbt")  # the dbt project (also holds profiles.yml)
+    # Locked predictions and the experiment ledger. Deliberately *not* under the warehouse or the
+    # published data: both are rebuilt from scratch routinely, and these two must survive that.
+    # A forecast that disappears when the warehouse is rebuilt cannot be graded honestly.
+    predictions_dir: Path = Path("data/predictions")
+    ledger_path: Path = Path("data/predictions/ledger.json")
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -33,6 +38,8 @@ class Settings:
             max_attempts=int(env.get("MAX_ATTEMPTS", "3")),
             warehouse_path=Path(env.get("WAREHOUSE_PATH", "data/warehouse.duckdb")),
             dbt_dir=Path(env.get("DBT_DIR", "dbt")),
+            predictions_dir=Path(env.get("PREDICTIONS_DIR", "data/predictions")),
+            ledger_path=Path(env.get("LEDGER_PATH", "data/predictions/ledger.json")),
         )
 
 

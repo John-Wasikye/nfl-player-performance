@@ -77,14 +77,15 @@ def verdict(weeks: list[GradedWeek], season_to_date: GradedWeek | None) -> str:
         )
     elif margin < 0.15:
         parts.append(
-            f"A player's {readable} would have been off by {season_to_date.baseline_mae[best]:.2f}, "
-            f"so the model is ahead by only {margin:.2f} points, which is inside the margin this "
-            "project treats as noise."
+            f"A player's {readable} would have been off by "
+            f"{season_to_date.baseline_mae[best]:.2f}, so the model is ahead by only "
+            f"{margin:.2f} points, which is inside the margin this project treats as noise."
         )
     else:
         parts.append(
-            f"A player's {readable} would have been off by {season_to_date.baseline_mae[best]:.2f}, "
-            f"so the model is ahead by {margin:.2f} points per game."
+            f"A player's {readable} would have been off by "
+            f"{season_to_date.baseline_mae[best]:.2f}, so the model is ahead by "
+            f"{margin:.2f} points per game."
         )
 
     coverage = season_to_date.interval_coverage

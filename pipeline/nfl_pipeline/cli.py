@@ -24,6 +24,7 @@ from nfl_pipeline.backtest import render_report, run_backtest
 from nfl_pipeline.config import Settings, build_storage
 from nfl_pipeline.datasets import DATASETS, resolve_files
 from nfl_pipeline.ingest import ingest
+from nfl_pipeline.predict.run import PredictionError, run_predictions
 from nfl_pipeline.publish import PublishError, publish
 from nfl_pipeline.season import current_season, parse_seasons
 
@@ -50,6 +51,19 @@ def build_parser() -> argparse.ArgumentParser:
         commands.add_parser("ingest", help="download nflverse files into raw storage")
     )
     commands.add_parser("publish", help="validate the rankings and write the published JSON")
+    predict = commands.add_parser(
+        "predict", help="project the coming week, grade the finished ones, publish both"
+    )
+    predict.add_argument("--season", type=int, help="season to work on (default: the latest)")
+    predict.add_argument(
+        "--week", type=int, help="week to project (default: the earliest one not yet played)"
+    )
+    predict.add_argument(
+        "--lock",
+        action="store_true",
+        help="write the projections to disk as final. Only do this before the first kickoff of "
+        "the week: a locked week cannot be rewritten, which is what makes the Report card honest.",
+    )
     backtest = commands.add_parser(
         "backtest", help="score the rankings against what happened the following week"
     )
@@ -122,6 +136,36 @@ def _run_publish(settings: Settings, now: datetime) -> int:
     return 0
 
 
+def _run_predict(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
+    try:
+        summary = run_predictions(
+            settings,
+            build_storage(settings),
+            now=now,
+            season=args.season,
+            week=args.week,
+            lock=args.lock,
+        )
+    except PredictionError as error:
+        print(f"predict failed: {error}", file=sys.stderr)
+        return 1
+    except ValueError as error:
+        # Raised when a locked week would have been overwritten. That needs a person, not a retry.
+        print(f"predict refused: {error}", file=sys.stderr)
+        return 1
+
+    if summary.predicted_week is None:
+        print(f"nothing to project for {summary.season}: {'; '.join(summary.notes)}")
+    else:
+        state = "locked" if summary.locked else "preliminary"
+        print(
+            f"projected {summary.players_predicted} players for {summary.season} "
+            f"week {summary.predicted_week} ({state})"
+        )
+    print(f"graded {summary.weeks_graded} finished weeks; wrote {summary.files_written} files")
+    return 0
+
+
 def _run_backtest(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
     try:
         summary = run_backtest(settings.warehouse_path, now=now)
@@ -157,6 +201,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_ingest(args, settings, now)
     if args.command == "publish":
         return _run_publish(settings, now)
+    if args.command == "predict":
+        return _run_predict(args, settings, now)
     if args.command == "backtest":
         return _run_backtest(args, settings, now)
 
