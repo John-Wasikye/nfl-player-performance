@@ -152,6 +152,91 @@ export interface Meta {
   positions: Position[];
 }
 
+// ---------------------------------------------------------------- predictions
+
+/** One player's projection for one game. Mirrors `PredictedPlayer` in contract.py. */
+export interface PredictedPlayer {
+  player_id: string;
+  name: string;
+  team: string;
+  opponent: string;
+  is_home: boolean;
+  position: Position;
+  /** Points if he plays. Shown alongside `expected_points`, never replaced by it. */
+  points: number;
+  low: number;
+  high: number;
+  probability_of_playing: number;
+  /** `points` discounted by the chance of playing. */
+  expected_points: number;
+  injury_status: string | null;
+  /** "locked" once the week can no longer change, which is what makes the Report card honest. */
+  status: "preliminary" | "locked";
+  locked_at: string | null;
+}
+
+export interface PredictionsFile {
+  schema_version: number;
+  season: number;
+  week: number;
+  position: Position;
+  generated_at: string;
+  model_version: string;
+  players: PredictedPlayer[];
+}
+
+/**
+ * How one week's locked predictions actually did.
+ *
+ * `mae` is only meaningful next to `player_games`: mean error depends on which players are
+ * included, so it must never be compared across different populations. See research section 5.15.
+ */
+export interface GradedWeek {
+  season: number;
+  week: number;
+  player_games: number;
+  mae: number;
+  rmse: number;
+  interval_coverage: number;
+  baseline_mae: Record<string, number>;
+  /** A model frozen before the season. Without it, "the AI is learning" is unfalsifiable. */
+  frozen_model_mae: number | null;
+}
+
+export interface AccuracyFile {
+  schema_version: number;
+  season: number;
+  generated_at: string;
+  weeks: GradedWeek[];
+  season_to_date: GradedWeek | null;
+  verdict: string;
+}
+
+/** One graded experiment. Failures are published too; that is the point of the ledger. */
+export interface LedgerEntry {
+  entry_id: string;
+  proposed_at: string;
+  hypothesis: string;
+  change: string;
+  champion_score: number;
+  challenger_score: number;
+  improvement: number;
+  promoted: boolean;
+  reason: string;
+  /**
+   * What the two scores are. An experiment that changes *which players are predicted* cannot be
+   * judged on mean error, because better players are more variable: the raw number rises while the
+   * model does more work. Those are judged on margin over the baseline instead.
+   */
+  metric: "mae" | "margin_over_baseline";
+}
+
+export interface LedgerFile {
+  schema_version: number;
+  generated_at: string;
+  entries: LedgerEntry[];
+}
+
 export type RankView = "composite" | "fantasy";
 
 export function isPosition(value: string): value is Position {
