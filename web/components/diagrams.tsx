@@ -41,29 +41,31 @@ function Box({
   w?: number;
   h?: number;
   title: string;
-  sub?: string;
+  sub?: string | string[];
   tone?: "plain" | "accent" | "good" | "bad";
 }) {
   const fill = tone === "accent" ? ACCENT_SOFT : SURFACE2;
   const stroke = tone === "good" ? UP : tone === "bad" ? DOWN : tone === "accent" ? ACCENT : LINE;
+  const subs = sub === undefined ? [] : Array.isArray(sub) ? sub : [sub];
+  const first = y + h / 2 - ((subs.length * 17) / 2) + 4;
   return (
     <g>
       <rect x={x} y={y} width={w} height={h} rx={10} fill={fill} stroke={stroke} strokeWidth={1.5} />
-      <text
-        x={x + w / 2}
-        y={sub ? y + h / 2 - 4 : y + h / 2 + 4}
-        textAnchor="middle"
-        fontSize={13}
-        fontWeight={600}
-        fill={FG}
-      >
+      <text x={x + w / 2} y={first} textAnchor="middle" fontSize={13} fontWeight={600} fill={FG}>
         {title}
       </text>
-      {sub && (
-        <text x={x + w / 2} y={y + h / 2 + 14} textAnchor="middle" fontSize={11} fill={MUTED}>
-          {sub}
+      {subs.map((line, i) => (
+        <text
+          key={line}
+          x={x + w / 2}
+          y={first + 17 * (i + 1)}
+          textAnchor="middle"
+          fontSize={11}
+          fill={MUTED}
+        >
+          {line}
         </text>
-      )}
+      ))}
     </g>
   );
 }
@@ -110,6 +112,19 @@ function Arrow({
   );
 }
 
+function Elbow({ d, dashed }: { d: string; dashed?: boolean }) {
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke={MUTED}
+      strokeWidth={1.5}
+      strokeDasharray={dashed ? "4 3" : undefined}
+      markerEnd="url(#arrowhead)"
+    />
+  );
+}
+
 function Defs() {
   return (
     <defs>
@@ -123,39 +138,27 @@ function Defs() {
 export function WeeklyCycleDiagram() {
   return (
     <Figure caption="Once projections are locked they are never changed, so the Report card measures forecasts, not hindsight.">
-      <svg viewBox="0 0 860 190" className="block h-auto w-full" role="img" aria-labelledby="cycle-t cycle-d">
+      <svg viewBox="0 0 860 200" className="block h-auto w-full" role="img" aria-labelledby="cycle-t cycle-d">
         <title id="cycle-t">The weekly prediction cycle</title>
         <desc id="cycle-d">
-          Five steps in a loop: the model makes projections, they are locked before the first
-          kickoff, the games are played, every projection is graded against what happened, and the
-          results are published on the Report card, which feeds back into the next week.
+          Four steps in a row, then a loop back. The model makes projections, they are locked before
+          the first kickoff, the games are played, and every projection is graded against what
+          happened. The results go on the Report card, and what I learn feeds the next week.
         </desc>
         <Defs />
-        <Box x={10} y={40} title="Project" sub="every eligible player" tone="accent" />
-        <Arrow x1={165} y1={67} x2={195} y2={67} />
-        <Box x={200} y={40} title="Lock" sub="before first kickoff" tone="accent" />
-        <Arrow x1={355} y1={67} x2={385} y2={67} />
-        <Box x={390} y={40} title="Games happen" sub="nothing can change" />
-        <Arrow x1={545} y1={67} x2={575} y2={67} />
-        <Box x={580} y={40} title="Grade" sub="against the real score" />
-        <Arrow x1={735} y1={67} x2={765} y2={67} />
-        <Box x={700} y={125} w={150} h={44} title="Report card" tone="good" />
-        <path
-          d="M 775 94 L 775 125"
-          stroke={MUTED}
-          strokeWidth={1.5}
-          fill="none"
-          markerEnd="url(#arrowhead)"
-        />
-        <path
-          d="M 700 147 L 85 147 L 85 100"
-          stroke={MUTED}
-          strokeWidth={1.5}
-          strokeDasharray="4 3"
-          fill="none"
-          markerEnd="url(#arrowhead)"
-        />
-        <text x={390} y={164} fontSize={11} fill={MUTED}>
+        <Box x={10} y={30} title="Project" sub="every eligible player" tone="accent" />
+        <Arrow x1={165} y1={57} x2={195} y2={57} />
+        <Box x={200} y={30} title="Lock" sub="before first kickoff" tone="accent" />
+        <Arrow x1={355} y1={57} x2={385} y2={57} />
+        <Box x={390} y={30} title="Games happen" sub="nothing can change" />
+        <Arrow x1={545} y1={57} x2={575} y2={57} />
+        <Box x={580} y={30} title="Grade" sub="against the real score" />
+
+        <Arrow x1={655} y1={87} x2={655} y2={125} />
+        <Box x={580} y={130} w={150} h={44} title="Report card" tone="good" />
+
+        <Elbow d="M 580 152 L 85 152 L 85 92" dashed />
+        <text x={330} y={172} textAnchor="middle" fontSize={11} fill={MUTED}>
           what I learn feeds the next week
         </text>
       </svg>
@@ -224,45 +227,42 @@ export function PopulationDiagram() {
 export function ModelDiagram() {
   return (
     <Figure caption="Two simple models, averaged. Nothing more elaborate helped in testing.">
-      <svg viewBox="0 0 860 260" className="block h-auto w-full" role="img" aria-labelledby="model-t model-d">
+      <svg viewBox="0 0 860 300" className="block h-auto w-full" role="img" aria-labelledby="model-t model-d">
         <title id="model-t">How one projection is built</title>
         <desc id="model-d">
-          A player&apos;s recent form, usage, opponent and game context feed two models, a linear one
-          and a tree-based one. Their average becomes the projection. Two further models produce the
-          low and high ends of the range, which is then widened to match how often it missed. Separately, the
-          injury report decides the chance the player takes the field.
+          A player&apos;s recent form, usage, opponent and game context feed three models. A linear
+          model and a tree model are averaged to give the projection. A pair of range models are
+          widened to match how often they missed, which gives the 80% range. Separately, the injury
+          report gives the chance the player takes the field.
         </desc>
         <Defs />
-        <Box x={10} y={20} w={150} h={70} title="Inputs" sub="form, usage, opponent," />
-        <text x={85} y={78} textAnchor="middle" fontSize={11} fill={MUTED}>
-          betting line, roof
-        </text>
-        <Arrow x1={165} y1={40} x2={215} y2={40} />
-        <Arrow x1={165} y1={70} x2={215} y2={70} />
-        <Arrow x1={165} y1={100} x2={215} y2={140} />
-        <Box x={220} y={16} w={150} title="Linear model" sub="steady, simple" />
-        <Box x={220} y={82} w={150} title="Tree model" sub="finds interactions" />
-        <Arrow x1={375} y1={43} x2={425} y2={60} />
-        <Arrow x1={375} y1={109} x2={425} y2={75} />
-        <Box x={430} y={40} w={150} title="Average of both" sub="the projection" tone="accent" />
-        <Arrow x1={585} y1={67} x2={635} y2={67} />
-        <Box x={640} y={40} w={200} h={54} title="24.3 points" sub="the number you see" tone="good" />
+        <Box x={10} y={45} w={150} h={84} title="Inputs" sub={["form, usage, opponent,", "betting line, roof"]} />
+        <line x1={160} y1={87} x2={190} y2={87} stroke={MUTED} strokeWidth={1.5} />
+        <line x1={190} y1={47} x2={190} y2={187} stroke={MUTED} strokeWidth={1.5} />
+        <Arrow x1={190} y1={47} x2={215} y2={47} />
+        <Arrow x1={190} y1={117} x2={215} y2={117} />
+        <Arrow x1={190} y1={187} x2={215} y2={187} />
 
-        <Box x={220} y={150} w={150} title="Range models" sub="low end and high end" />
-        <Arrow x1={375} y1={177} x2={425} y2={177} />
-        <Box x={430} y={150} w={150} title="Widen the range" sub="checked on unseen weeks" />
-        <Arrow x1={585} y1={177} x2={635} y2={177} />
-        <Box x={640} y={150} w={200} h={54} title="10.7 to 34.0" sub="the 80% range" tone="good" />
+        <Box x={220} y={20} w={150} title="Linear model" sub="steady, simple" />
+        <Box x={220} y={90} w={150} title="Tree model" sub="finds interactions" />
+        <Box x={220} y={160} w={150} title="Range models" sub="low end and high end" />
 
-        <Box x={10} y={200} w={150} h={44} title="Injury report" sub="chance of playing" tone="bad" />
-        <path
-          d="M 165 222 L 700 222 L 700 208"
-          stroke={MUTED}
-          strokeWidth={1.5}
-          strokeDasharray="4 3"
-          fill="none"
-          markerEnd="url(#arrowhead)"
-        />
+        <line x1={370} y1={47} x2={400} y2={47} stroke={MUTED} strokeWidth={1.5} />
+        <line x1={370} y1={117} x2={400} y2={117} stroke={MUTED} strokeWidth={1.5} />
+        <line x1={400} y1={47} x2={400} y2={117} stroke={MUTED} strokeWidth={1.5} />
+        <Arrow x1={400} y1={82} x2={425} y2={82} />
+        <Box x={430} y={55} w={150} title="Average of both" sub="the projection" tone="accent" />
+        <Arrow x1={580} y1={82} x2={635} y2={82} />
+        <Box x={640} y={55} w={200} title="24.3 points" sub="the number you see" tone="good" />
+
+        <Arrow x1={370} y1={187} x2={425} y2={187} />
+        <Box x={430} y={160} w={150} title="Widen the range" sub="checked on unseen weeks" />
+        <Arrow x1={580} y1={187} x2={635} y2={187} />
+        <Box x={640} y={160} w={200} title="10.7 to 34.0" sub="the 80% range" tone="good" />
+
+        <Box x={10} y={230} w={150} title="Injury report" sub="practice status" tone="bad" />
+        <Arrow x1={160} y1={257} x2={635} y2={257} label="separate model" />
+        <Box x={640} y={230} w={200} title="Chance of playing" sub="Questionable players only" tone="good" />
       </svg>
     </Figure>
   );
@@ -271,7 +271,7 @@ export function ModelDiagram() {
 export function RangeDiagram() {
   return (
     <Figure caption="The same projection shown two ways. The single number is the middle of the range.">
-      <svg viewBox="0 0 860 170" className="block h-auto w-full" role="img" aria-labelledby="range-t range-d">
+      <svg viewBox="0 0 860 195" className="block h-auto w-full" role="img" aria-labelledby="range-t range-d">
         <title id="range-t">Why every projection carries a range</title>
         <desc id="range-d">
           A single number of 24.3 points looks precise. The 80% range for the same player runs
@@ -283,8 +283,8 @@ export function RangeDiagram() {
           What a single number implies
         </text>
         <line x1={20} y1={58} x2={820} y2={58} stroke={LINE} strokeWidth={2} />
-        <circle cx={430} cy={58} r={7} fill={ACCENT} />
-        <text x={430} y={82} textAnchor="middle" fontSize={12} fill={MUTED}>
+        <circle cx={464} cy={58} r={7} fill={ACCENT} />
+        <text x={464} y={82} textAnchor="middle" fontSize={12} fill={MUTED}>
           &ldquo;24.3 points&rdquo;
         </text>
 
@@ -293,14 +293,14 @@ export function RangeDiagram() {
         </text>
         <line x1={20} y1={138} x2={820} y2={138} stroke={LINE} strokeWidth={2} />
         <rect x={215} y={129} width={430} height={18} rx={9} fill={ACCENT_SOFT} stroke={ACCENT} />
-        <circle cx={430} cy={138} r={7} fill={ACCENT} />
-        <text x={215} y={162} textAnchor="middle" fontSize={12} fill={MUTED}>
+        <circle cx={464} cy={138} r={7} fill={ACCENT} />
+        <text x={215} y={168} textAnchor="middle" fontSize={12} fill={MUTED}>
           10.7
         </text>
-        <text x={645} y={162} textAnchor="middle" fontSize={12} fill={MUTED}>
+        <text x={645} y={168} textAnchor="middle" fontSize={12} fill={MUTED}>
           34.0
         </text>
-        <text x={430} y={162} textAnchor="middle" fontSize={12} fill={FG}>
+        <text x={430} y={182} textAnchor="middle" fontSize={12} fill={FG}>
           4 games out of 5 land in here
         </text>
       </svg>
@@ -311,61 +311,39 @@ export function RangeDiagram() {
 export function LearningLoopDiagram() {
   return (
     <Figure caption="A change is adopted only if it beats the current model on weeks neither was trained on. A tie keeps the current model.">
-      <svg viewBox="0 0 860 250" className="block h-auto w-full" role="img" aria-labelledby="learn-t learn-d">
-        <title id="learn-t">How the system improves over time</title>
+      <svg viewBox="0 0 860 310" className="block h-auto w-full" role="img" aria-labelledby="learn-t learn-d">
+        <title id="learn-t">How a change to the model is adopted</title>
         <desc id="learn-d">
-          The failures of the current model are summarised. One new idea is written as code. It is
-          replayed against five past seasons alongside the current model. If it is clearly better it
-          replaces it; if not it is recorded as a dead end. Either way the result is published.
+          Where the current model missed is summarised. One new idea is written as code and replayed
+          against five past seasons alongside the current model. A decision follows: if the change is
+          clearly better and its ranges still hold, it replaces the model. If not, it is recorded as
+          a dead end. Both outcomes go on the Report card.
         </desc>
         <Defs />
-        <Box x={10} y={30} title="Where it missed" sub="last week, summarised" />
-        <Arrow x1={165} y1={57} x2={205} y2={57} />
-        <Box x={210} y={30} title="One new idea" sub="written as real code" tone="accent" />
-        <Arrow x1={365} y1={57} x2={405} y2={57} />
-        <Box x={410} y={30} w={170} title="Replay 5 seasons" sub="old model vs new" />
-        <Arrow x1={585} y1={57} x2={625} y2={57} />
-        <Box x={630} y={22} w={210} h={70} title="Is it clearly better?" sub="and do its ranges hold?" />
+        <Box x={10} y={20} w={210} title="Where it missed" sub="last week, summarised" />
+        <Arrow x1={225} y1={47} x2={315} y2={47} />
+        <Box x={320} y={20} w={210} title="One new idea" sub="written as real code" tone="accent" />
+        <Arrow x1={535} y1={47} x2={625} y2={47} />
+        <Box x={630} y={20} w={210} title="Replay 5 seasons" sub="old model vs new" />
 
-        <path
-          d="M 735 92 L 735 125"
-          stroke={MUTED}
-          strokeWidth={1.5}
-          fill="none"
-          markerEnd="url(#arrowhead)"
-        />
-        <text x={748} y={112} fontSize={11} fill={UP}>
-          yes
-        </text>
-        <Box x={630} y={125} w={210} h={48} title="It replaces the model" tone="good" />
+        <Arrow x1={735} y1={77} x2={735} y2={110} />
+        <Box x={630} y={115} w={210} title="Clearly better?" sub="and do the ranges hold?" />
 
-        <path
-          d="M 630 57 L 600 57"
-          stroke={MUTED}
-          strokeWidth={0}
-          fill="none"
-        />
-        <path
-          d="M 660 92 L 400 92 L 400 150"
-          stroke={MUTED}
-          strokeWidth={1.5}
-          strokeDasharray="4 3"
-          fill="none"
-          markerEnd="url(#arrowhead)"
-        />
-        <text x={470} y={86} fontSize={11} fill={DOWN}>
+        <Elbow d="M 630 142 L 505 142 L 505 205" />
+        <text x={570} y={134} textAnchor="middle" fontSize={12} fontWeight={600} fill={DOWN}>
           no
         </text>
-        <Box x={325} y={150} w={210} h={48} title="Recorded as a dead end" tone="bad" />
-        <path
-          d="M 430 198 L 430 220 L 735 220 L 735 175"
-          stroke={MUTED}
-          strokeWidth={1.5}
-          strokeDasharray="4 3"
-          fill="none"
-        />
-        <text x={520} y={236} fontSize={11} fill={MUTED}>
-          both outcomes are published on the Report card
+        <Arrow x1={735} y1={175} x2={735} y2={205} />
+        <text x={747} y={195} fontSize={12} fontWeight={600} fill={UP}>
+          yes
+        </text>
+
+        <Box x={400} y={210} w={210} title="Recorded as a dead end" tone="bad" />
+        <Box x={630} y={210} w={210} title="It replaces the model" tone="good" />
+
+        <path d="M 400 280 L 400 286 L 840 286 L 840 280" fill="none" stroke={LINE} strokeWidth={1.5} />
+        <text x={620} y={304} textAnchor="middle" fontSize={11} fill={MUTED}>
+          both outcomes go on the Report card
         </text>
       </svg>
     </Figure>
