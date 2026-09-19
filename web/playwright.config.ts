@@ -22,7 +22,7 @@ export default defineConfig({
     // Builds into out-e2e/ so the suite can run while `next dev` is up. Both used to write to .next.
     command:
       `npm run build && node scripts/serve-static.mjs ${OUT} --data e2e/fixtures --port ${PORT}`,
-    env: { NEXT_DIST_DIR: OUT, NEXT_PUBLIC_CONTACT_ENDPOINT: "https://contact.example.test/send" },
+    env: { NEXT_DIST_DIR: OUT },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,

@@ -296,90 +296,20 @@ test.describe("About page author section", () => {
     await expect(section.getByRole("link", { name: /nfl-player-performance on GitHub/ })).toBeVisible();
   });
 
-  test("does not publish an email address anywhere on the page", async ({ page }) => {
-    const response = await page.goto("/about/");
-    const html = (await response?.text()) ?? "";
+  test("shows the author's email as a mailto link", async ({ page }) => {
+    await page.goto("/about/");
+    const section = page.getByRole("region", { name: "About the author" });
 
-    expect(html).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
-    expect(html).not.toContain("mailto:");
+    await expect(section.getByRole("link", { name: "john.wasikye@gmail.com" })).toHaveAttribute(
+      "href",
+      "mailto:john.wasikye@gmail.com",
+    );
   });
 
   test("does not call the project a portfolio project", async ({ page }) => {
     await page.goto("/about/");
 
     await expect(page.getByText(/portfolio project/i)).toHaveCount(0);
-  });
-
-  test.describe("contact form", () => {
-    const ENDPOINT = "https://contact.example.test/send";
-    const CORS = {
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "*",
-      "access-control-allow-methods": "POST, OPTIONS",
-    };
-
-    async function fillIn(page: Page) {
-      await page.getByLabel("Name").fill("Sam Reader");
-      await page.getByLabel("Your email").fill("sam@example.com");
-      await page.getByLabel("Message").fill("Nice project, a question about the model.");
-    }
-
-    test("sends a message and confirms it", async ({ page }) => {
-      let body: unknown = null;
-      await page.route(ENDPOINT, async (route) => {
-        if (route.request().method() === "OPTIONS") {
-          await route.fulfill({ status: 204, headers: CORS });
-          return;
-        }
-        body = route.request().postDataJSON();
-        await route.fulfill({ status: 200, headers: CORS, body: "{}" });
-      });
-      await page.goto("/about/");
-
-      await fillIn(page);
-      // A person takes a few seconds; the form rejects anything faster.
-      await page.waitForTimeout(2800);
-      await page.getByRole("button", { name: "Send message" }).click();
-
-      await expect(page.getByRole("status")).toContainText("your message was sent");
-      expect(body).toEqual({
-        name: "Sam Reader",
-        email: "sam@example.com",
-        message: "Nice project, a question about the model.",
-      });
-    });
-
-    test("rejects a submission that arrives too quickly", async ({ page }) => {
-      let requests = 0;
-      await page.route(ENDPOINT, async (route) => {
-        requests += 1;
-        await route.fulfill({ status: 200, headers: CORS, body: "{}" });
-      });
-      await page.goto("/about/");
-
-      await fillIn(page);
-      await page.getByRole("button", { name: "Send message" }).click();
-
-      await expect(page.getByRole("alert").filter({ hasText: "That was quick" })).toBeVisible();
-      expect(requests).toBe(0);
-    });
-
-    test("says so when the message could not be sent", async ({ page }) => {
-      await page.route(ENDPOINT, async (route) => {
-        if (route.request().method() === "OPTIONS") {
-          await route.fulfill({ status: 204, headers: CORS });
-          return;
-        }
-        await route.fulfill({ status: 500, headers: CORS, body: "{}" });
-      });
-      await page.goto("/about/");
-
-      await fillIn(page);
-      await page.waitForTimeout(2800);
-      await page.getByRole("button", { name: "Send message" }).click();
-
-      await expect(page.getByRole("alert").filter({ hasText: "didn't send" })).toBeVisible();
-    });
   });
 
   test("no longer carries the thank-you line or the disclaimer list", async ({ page }) => {

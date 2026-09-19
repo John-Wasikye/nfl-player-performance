@@ -8,6 +8,7 @@ export const SITE = {
 export const AUTHOR = {
   name: "John Wasikye",
   initials: "JW",
+  email: "john.wasikye@gmail.com",
   github: "https://github.com/John-Wasikye",
   repo: "https://github.com/John-Wasikye/nfl-player-performance",
   // Set this to the address of the site that lists your other projects, once it is live.
