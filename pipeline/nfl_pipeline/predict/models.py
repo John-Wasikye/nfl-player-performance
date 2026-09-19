@@ -42,6 +42,12 @@ BOOSTING_ROUNDS = 400
 MIN_TRAINING_ROWS = 400
 # A player needs some history before a projection means anything.
 MIN_PRIOR_GAMES = 3
+# A player needs a real role before a *model* is worth more than his own recent average. Research
+# section 5.15 measured the model losing to a plain average below this line (-0.291 mean absolute
+# error for players under 2 points, -0.093 from 2 to 4) and winning above it, rising steadily to
+# +0.292 for players averaging 13 or more. 4.0 is the smallest cut-off that clears the 0.15
+# promotion bar, chosen over higher ones to keep as many players on the site as possible.
+MIN_RECENT_SCORING = 4.0
 
 
 @dataclass
@@ -92,6 +98,17 @@ class PredictionModel:
         that has not been played, which is every week we actually care about.
         """
         return frame[frame.prior_games >= MIN_PRIOR_GAMES]
+
+    @staticmethod
+    def eligible(frame: pd.DataFrame) -> pd.DataFrame:
+        """Players with a real enough role that a model beats their own recent average.
+
+        Note that this narrows *publishing*, not *training*. Experiment K found the model learns
+        slightly better from the full population (margin +0.170 against +0.159) and there is no
+        reason to throw away data. What the low-volume players must not do is set the width of the
+        published ranges: see `_calibrate`.
+        """
+        return frame[frame.ppr_mean5.fillna(0) >= MIN_RECENT_SCORING]
 
     def fit(
         self, history: pd.DataFrame, calibration: pd.DataFrame | None = None
@@ -148,8 +165,19 @@ class PredictionModel:
             )
 
     def _calibrate(self, calibration: pd.DataFrame) -> float:
-        """How much too narrow is the raw range? Split-conformal, on unseen data."""
-        usable = self.trainable(calibration)
+        """How much too narrow is the raw range? Split-conformal, on unseen *publishable* data.
+
+        The eligibility filter here is not a detail. Conformal prediction only guarantees coverage
+        when the calibration set is exchangeable with what is being predicted. Calibrating on a
+        population full of low-volume players — whose errors are small, because near-zero scores are
+        easy — produces an offset that is too narrow for the players actually published. Experiment
+        K measured exactly that: training on everyone and calibrating on everyone dropped coverage
+        from 0.798 to 0.778, against a nominal 0.80.
+
+        So the model trains on all the data it can and calibrates on the population it will be
+        judged against.
+        """
+        usable = self.eligible(self.trainable(calibration))
         if len(usable) < 100:
             return 0.0
         x = self._prepare(usable)

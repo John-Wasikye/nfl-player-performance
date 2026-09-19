@@ -44,6 +44,7 @@ class Ledger:
         change: str,
         decision: dict,
         proposed_at: str | None = None,
+        metric: str = "mae",
     ) -> LedgerEntry:
         """Append one decision, straight from `promotion_decision`.
 
@@ -61,11 +62,12 @@ class Ledger:
             proposed_at=proposed_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
             hypothesis=hypothesis,
             change=change,
-            champion_mae=decision["champion_mae"],
-            challenger_mae=decision["challenger_mae"],
+            champion_score=decision["champion_mae"],
+            challenger_score=decision["challenger_mae"],
             improvement=decision["improvement"],
             promoted=decision["promote"],
             reason=decision["reason"],
+            metric=metric,
         )
         self.entries.append(entry)
         logger.info(
@@ -101,9 +103,15 @@ class Ledger:
                 f"{tried} changes have been tested and none beat the current model. "
                 "Nothing shipped, which is the system working as intended."
             )
-        gain = sum(e.improvement for e in self.promoted)
+        dropped = tried - kept
+        # Deliberately no total: entries judged on different metrics cannot be added up, and a
+        # tidy-looking sum of incomparable numbers is the exact mistake this ledger exists to avoid.
+        tail = (
+            "every one of them was kept"
+            if dropped == 0
+            else f"the other {'one was' if dropped == 1 else f'{dropped} were'} rejected"
+        )
         return (
-            f"{tried} changes tested, {kept} kept. The ones that survived cut the average error by "
-            f"{gain:.3f} fantasy points in total; the other {tried - kept} were rejected and are "
-            "listed below with their numbers."
+            f"{tried} changes tested, {kept} kept; {tail} and listed below with the numbers that "
+            "decided it."
         )

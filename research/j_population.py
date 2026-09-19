@@ -34,9 +34,7 @@ def margin_by_usage(features: pd.DataFrame) -> dict:
     )
     baselines = baseline_predictions(
         features.set_index(["player_id", "season", "week"])
-        .loc[
-            pd.MultiIndex.from_frame(graded[["player_id", "season", "week"]])
-        ]
+        .loc[pd.MultiIndex.from_frame(graded[["player_id", "season", "week"]])]
         .reset_index()
     )
     graded["baseline"] = baselines["last_ten"]

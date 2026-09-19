@@ -6,6 +6,8 @@ models:
       The feature store: one row per player-week holding only what was knowable before that week's
       game kicked off. Every measure taken from a player's own play is shifted back one game.
       `actual_ppr` is the outcome, carried for training and grading, and is never an input.
+      The store also holds one row per player for the upcoming week's fixtures, with no
+      statistics and no outcome, so the same features can be computed for a game not yet played.
     data_tests:
       - not_empty
       - unique_combination:
@@ -42,4 +44,7 @@ models:
               arguments:
                 values: [QB, RB, WR, TE, K]
       - name: actual_ppr
-        data_tests: [not_null]
+        description: >
+          The outcome. Null exactly when the game has not been played yet, which is what makes
+          the upcoming week predictable at all. See
+          assert_the_outcome_is_present_if_and_only_if_the_game_is_final.

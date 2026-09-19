@@ -1,0 +1,32 @@
+{
+  "threshold": 4.0,
+  "narrow": {
+    "weeks": 36,
+    "player_games": 8464,
+    "mae": 5.2778,
+    "rmse": 6.7961,
+    "interval_coverage": 0.7978,
+    "spearman": 0.5312,
+    "baselines": {
+      "recent_average": 5.6024,
+      "season_average": 5.489,
+      "last_ten": 5.4363
+    },
+    "best_baseline": "last_ten",
+    "improvement_over_best_baseline": 0.1585
+  },
+  "wide": {
+    "player_games": 8464,
+    "mae": 5.2659,
+    "baselines": {
+      "recent_average": 5.6024,
+      "season_average": 5.489,
+      "last_ten": 5.4363
+    },
+    "best_baseline": "last_ten",
+    "improvement_over_best_baseline": 0.1704,
+    "interval_coverage": 0.7776,
+    "spearman": 0.5301
+  },
+  "verdict": "train on everyone, publish only the eligible"
+}

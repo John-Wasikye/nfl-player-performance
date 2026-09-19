@@ -472,8 +472,8 @@ def test_the_ledger_records_failures_as_well_as_wins():
                 {
                     "entry_id": "2026-w03-a", "proposed_at": "2026-09-20T12:00:00+00:00",
                     "hypothesis": "Snap share trend should help running backs.",
-                    "change": "added snap_share_trend3", "champion_mae": 4.45,
-                    "challenger_mae": 4.47, "improvement": -0.02, "promoted": False,
+                    "change": "added snap_share_trend3", "champion_score": 4.45,
+                    "challenger_score": 4.47, "improvement": -0.02, "promoted": False,
                     "reason": "worse than the champion by 0.020",
                 }
             ],

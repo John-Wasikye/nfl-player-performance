@@ -48,6 +48,94 @@ with base as (
       and fct.position_group in ('QB', 'RB', 'WR', 'TE', 'K')
 ),
 
+-- The week we are about to predict: the earliest one in the latest season that still has an
+-- unplayed game. A week that is part-finished is still the upcoming week, because that is the week
+-- a reader visiting mid-week wants projections for.
+next_week as (
+    select season, min(week) as week
+    from {{ ref('dim_game') }}
+    where game_type = 'REG'
+      and not is_final
+      and season = (select max(season) from {{ ref('dim_game') }} where game_type = 'REG')
+    group by season
+),
+
+-- Who is on each team for that week. Taken as each player's most recent team, which early in a
+-- season means last season's team until he appears in this one. Bounded to roughly a season of
+-- inactivity so that retired players stop appearing.
+current_roster as (
+    select player_id, position_group, team
+    from (
+        select
+            player_id,
+            position_group,
+            team,
+            row_number() over (
+                partition by player_id order by season desc, week desc
+            ) as recency,
+            max(season * 100 + week) over () as latest_played,
+            season * 100 + week as played
+        from {{ ref('fct_player_week') }}
+        where season_type = 'REG'
+          and position_group in ('QB', 'RB', 'WR', 'TE', 'K')
+    )
+    where recency = 1
+      and latest_played - played < 120  -- about one season of weeks, in the season*100+week scale
+),
+
+-- One row per player in that week's fixtures, with no statistics at all. Everything these rows
+-- carry is either from the schedule (known in advance) or computed from earlier games by the
+-- windows below, so an upcoming row is exactly as point-in-time as a historical one.
+upcoming as (
+    select
+        roster.player_id,
+        next_week.season,
+        next_week.week,
+        roster.position_group,
+        roster.team,
+        case when game.home_team = roster.team then game.away_team else game.home_team end
+            as opponent_team,
+        game.game_id,
+        injury.report_status as injury_status,
+        cast(null as double) as ppr,
+        cast(null as integer) as attempts,
+        cast(null as integer) as carries,
+        cast(null as integer) as targets,
+        cast(null as integer) as receptions,
+        cast(null as integer) as passing_yards,
+        cast(null as integer) as rushing_yards,
+        cast(null as integer) as receiving_yards,
+        cast(null as double) as target_share,
+        cast(null as double) as snap_share,
+        cast(null as integer) as pass_snaps,
+        cast(null as double) as target_per_pass_snap,
+        cast(null as double) as avg_separation,
+        cast(null as double) as rush_yards_over_expected_per_att,
+        cast(null as double) as completion_percentage_above_expectation,
+        cast(null as double) as times_pressured_pct,
+        cast(null as double) as rushing_yards_after_contact_avg
+    from next_week
+    inner join {{ ref('dim_game') }} as game
+        on game.season = next_week.season
+        and game.week = next_week.week
+        and game.game_type = 'REG'
+    inner join current_roster as roster
+        on roster.team in (game.home_team, game.away_team)
+    left join {{ ref('stg_injuries') }} as injury
+        on injury.player_id = roster.player_id
+        and injury.season = next_week.season
+        and injury.week = next_week.week
+    -- A player whose game that week has already finished is in `base` with his real result; adding
+    -- him here too would duplicate him and, worse, give the duplicate a null outcome.
+    where not game.is_final
+),
+
+combined as (
+    select * from base
+    union all
+    select * from upcoming
+),
+
 -- Every backward-looking window ends one game BEFORE the current row. Recent form carries across seasons
 -- (a player does not become a stranger in September), but the season average resets.
 player_form as (
@@ -77,7 +165,7 @@ player_form as (
         avg(completion_percentage_above_expectation) over prior_8 as cpoe_mean8,
         avg(times_pressured_pct) over prior_8 as pressure_rate_mean8,
         avg(rushing_yards_after_contact_avg) over prior_8 as yac_contact_mean8
-    from base
+    from combined
     window
         prior as (
             partition by player_id order by season, week

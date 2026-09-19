@@ -109,7 +109,12 @@ def predict_week(
         )
 
     current = features[(features.season == season) & (features.week == week)]
-    current = PredictionModel.predictable(current)
+    # Two filters, and the order is not the interesting part — the reason for the second one is.
+    # `predictable` keeps players with enough history for a projection to mean anything.
+    # `eligible` keeps players with a real enough role that the model beats their own recent
+    # average; below that line the research measured it *losing* to a plain average, so publishing
+    # those projections would make the site worse than doing nothing. See research section 5.15.
+    current = PredictionModel.eligible(PredictionModel.predictable(current))
     if current.empty:
         raise ValueError(f"no player in {season} week {week} has enough history to project")
 

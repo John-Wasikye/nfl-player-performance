@@ -217,11 +217,19 @@ class LedgerEntry(Model):
     proposed_at: str
     hypothesis: str
     change: str
-    champion_mae: float
-    challenger_mae: float
+    champion_score: float
+    challenger_score: float
     improvement: float
     promoted: bool
     reason: str
+    # What the two scores above are, and therefore what `improvement` counts in.
+    #
+    # Usually mean absolute error. But an experiment that changes *which players are predicted*
+    # cannot be judged on it, because mean error depends on the population: better players are more
+    # variable, so a stricter population raises the raw number while the model is doing better.
+    # Those experiments are judged on the margin over the baseline, measured within each population,
+    # and say so here rather than quietly reporting incomparable figures as if they were comparable.
+    metric: Literal["mae", "margin_over_baseline"] = "mae"
 
 
 class LedgerFile(Model):

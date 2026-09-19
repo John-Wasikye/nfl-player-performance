@@ -1,0 +1,22 @@
+{
+  "threshold": 4.0,
+  "calibrated_on_everyone": {
+    "player_games": 8464,
+    "mae": 5.2659,
+    "best_baseline_mae": 5.4363,
+    "margin": 0.1704,
+    "interval_coverage": 0.7776,
+    "mean_interval_width": 15.85,
+    "spearman": 0.5301
+  },
+  "calibrated_on_publishable": {
+    "player_games": 8464,
+    "mae": 5.2659,
+    "best_baseline_mae": 5.4363,
+    "margin": 0.1704,
+    "interval_coverage": 0.797,
+    "mean_interval_width": 16.138,
+    "spearman": 0.5301
+  },
+  "coverage_back_in_the_78_82_band": true
+}

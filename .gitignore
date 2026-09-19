@@ -14,6 +14,15 @@ htmlcov/
 data/
 .env
 
+# ...except the two things in there that must survive a clean checkout.
+#
+# Locked predictions are forecasts written before kickoff and never rewritten, and the ledger
+# records what each experiment decided. Both are worthless if they can quietly disappear or
+# change, so they are tracked: git history makes them tamper-evident, which is a stronger
+# guarantee than a bucket a later pipeline run could overwrite.
+!data/predictions/
+!data/predictions/**
+
 # Terraform (used from phase 1C)
 .terraform/
 *.tfstate
