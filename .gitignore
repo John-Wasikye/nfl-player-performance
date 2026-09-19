@@ -44,6 +44,8 @@ dbt/.user.yml
 web/node_modules/
 web/.next/
 web/out/
+# The end-to-end suite builds into its own folder so it never collides with a dev server.
+web/out-e2e/
 web/public/data/
 web/test-results/
 web/playwright-report/

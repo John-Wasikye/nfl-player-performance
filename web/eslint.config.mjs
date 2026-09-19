@@ -11,6 +11,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // Where the end-to-end suite builds, so linting never walks the generated site.
+    "out-e2e/**",
     "next-env.d.ts",
   ]),
 ]);

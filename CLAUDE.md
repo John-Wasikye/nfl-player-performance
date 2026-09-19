@@ -27,8 +27,11 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
 - Docker stack (MinIO plus the pipeline): `docker compose up -d minio minio-init`, then
   `docker compose run --rm pipeline ingest --datasets schedules`
 
-- Website (from `web/`): `npm run dev` (syncs published data first), `npm run lint`, `npm run typecheck`,
-  `npm test`, `npm run test:e2e`. Read `web/AGENTS.md`: this Next.js version differs from older ones, so check
+- Website (from `web/`): `npm run dev` (syncs published data and rebuilds the research page first),
+  `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`.
+  The e2e suite builds into `out-e2e/` via `NEXT_DIST_DIR`, so it can run with a dev server up;
+  they used to share `.next` and corrupt each other. `npm run research` alone regenerates the
+  research page after editing `docs/prediction-research.md`. Read `web/AGENTS.md`: this Next.js version differs from older ones, so check
   `web/node_modules/next/dist/docs/` before changing framework-level code.
 
 ## Conventions
