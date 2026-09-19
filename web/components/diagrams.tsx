@@ -1,9 +1,4 @@
-// Diagrams for the methodology pages.
-//
-// All of them draw with the theme tokens rather than fixed colours, so they read correctly in dark
-// mode without a second copy. Each one carries a <title> and a short <desc>, because a diagram that
-// only works visually leaves out anyone using a screen reader, and these carry real explanation
-// rather than decoration.
+// Diagrams for the methodology pages. Colours come from the theme tokens so they work in dark mode.
 
 const FG = "var(--fg)";
 const MUTED = "var(--muted)";
@@ -125,10 +120,9 @@ function Defs() {
   );
 }
 
-/** What happens each week, in order, and where the lock sits. */
 export function WeeklyCycleDiagram() {
   return (
-    <Figure caption="The lock is the important step. Once projections are written down they are never changed, so the Report card measures forecasting rather than hindsight.">
+    <Figure caption="Once projections are locked they are never changed, so the Report card measures forecasts, not hindsight.">
       <svg viewBox="0 0 860 190" className="block h-auto w-full" role="img" aria-labelledby="cycle-t cycle-d">
         <title id="cycle-t">The weekly prediction cycle</title>
         <desc id="cycle-d">
@@ -162,17 +156,16 @@ export function WeeklyCycleDiagram() {
           markerEnd="url(#arrowhead)"
         />
         <text x={390} y={164} fontSize={11} fill={MUTED}>
-          what we learn feeds the next week
+          what I learn feeds the next week
         </text>
       </svg>
     </Figure>
   );
 }
 
-/** The three populations, which are deliberately different. */
 export function PopulationDiagram() {
   return (
-    <Figure caption="Three different groups doing three different jobs. Each split was measured, not assumed.">
+    <Figure caption="Three groups of players doing three different jobs. Each split was tested.">
       <svg viewBox="0 0 860 230" className="block h-auto w-full" role="img" aria-labelledby="pop-t pop-d">
         <title id="pop-t">Which players are used for what</title>
         <desc id="pop-d">
@@ -221,29 +214,28 @@ export function PopulationDiagram() {
           one only made the numbers noisier.
         </text>
         <text x={440} y={188} fontSize={12} fill={FG} fontWeight={600}>
-          Learning from them still helps, so we do.
+          Learning from them still helps, so the model does.
         </text>
       </svg>
     </Figure>
   );
 }
 
-/** How one projection is built. */
 export function ModelDiagram() {
   return (
-    <Figure caption="Two simple models are averaged. The research found nothing more elaborate was justified: the limit is the sport's randomness, not the algorithm.">
+    <Figure caption="Two simple models, averaged. Nothing more elaborate helped in testing.">
       <svg viewBox="0 0 860 260" className="block h-auto w-full" role="img" aria-labelledby="model-t model-d">
         <title id="model-t">How one projection is built</title>
         <desc id="model-d">
           A player&apos;s recent form, usage, opponent and game context feed two models, a linear one
           and a tree-based one. Their average becomes the projection. Two further models produce the
-          low and high ends of the range, which is then widened until it is honest. Separately, the
+          low and high ends of the range, which is then widened to match how often it missed. Separately, the
           injury report decides the chance the player takes the field.
         </desc>
         <Defs />
-        <Box x={10} y={20} w={150} h={70} title="What we know" sub="form, usage, opponent," />
+        <Box x={10} y={20} w={150} h={70} title="Inputs" sub="form, usage, opponent," />
         <text x={85} y={78} textAnchor="middle" fontSize={11} fill={MUTED}>
-          weather, betting line
+          betting line, roof
         </text>
         <Arrow x1={165} y1={40} x2={215} y2={40} />
         <Arrow x1={165} y1={70} x2={215} y2={70} />
@@ -258,7 +250,7 @@ export function ModelDiagram() {
 
         <Box x={220} y={150} w={150} title="Range models" sub="low end and high end" />
         <Arrow x1={375} y1={177} x2={425} y2={177} />
-        <Box x={430} y={150} w={150} title="Widen until honest" sub="checked on unseen weeks" />
+        <Box x={430} y={150} w={150} title="Widen the range" sub="checked on unseen weeks" />
         <Arrow x1={585} y1={177} x2={635} y2={177} />
         <Box x={640} y={150} w={200} h={54} title="10.7 to 34.0" sub="the 80% range" tone="good" />
 
@@ -276,14 +268,13 @@ export function ModelDiagram() {
   );
 }
 
-/** Why a single number would be dishonest. */
 export function RangeDiagram() {
   return (
-    <Figure caption="The same projection, shown two ways. The range is what the model actually believes; the single number is only its middle.">
+    <Figure caption="The same projection shown two ways. The single number is the middle of the range.">
       <svg viewBox="0 0 860 170" className="block h-auto w-full" role="img" aria-labelledby="range-t range-d">
         <title id="range-t">Why every projection carries a range</title>
         <desc id="range-d">
-          A single number of 24.3 points looks precise. The honest 80% range for the same player runs
+          A single number of 24.3 points looks precise. The 80% range for the same player runs
           from about 11 to 34 points, meaning four times out of five the real score lands somewhere
           in that band.
         </desc>
@@ -298,7 +289,7 @@ export function RangeDiagram() {
         </text>
 
         <text x={20} y={112} fontSize={13} fontWeight={600} fill={FG}>
-          What the model actually believes
+          The model&apos;s range
         </text>
         <line x1={20} y1={138} x2={820} y2={138} stroke={LINE} strokeWidth={2} />
         <rect x={215} y={129} width={430} height={18} rx={9} fill={ACCENT_SOFT} stroke={ACCENT} />
@@ -317,10 +308,9 @@ export function RangeDiagram() {
   );
 }
 
-/** The promotion gate: why accuracy can only ratchet forward. */
 export function LearningLoopDiagram() {
   return (
-    <Figure caption="A change is only adopted if it beats the current model on weeks neither of them was trained on. A tie keeps the incumbent, so published accuracy can hold steady but not slip.">
+    <Figure caption="A change is adopted only if it beats the current model on weeks neither was trained on. A tie keeps the current model.">
       <svg viewBox="0 0 860 250" className="block h-auto w-full" role="img" aria-labelledby="learn-t learn-d">
         <title id="learn-t">How the system improves over time</title>
         <desc id="learn-d">
@@ -335,7 +325,7 @@ export function LearningLoopDiagram() {
         <Arrow x1={365} y1={57} x2={405} y2={57} />
         <Box x={410} y={30} w={170} title="Replay 5 seasons" sub="old model vs new" />
         <Arrow x1={585} y1={57} x2={625} y2={57} />
-        <Box x={630} y={22} w={210} h={70} title="Is it clearly better?" sub="and are its ranges honest?" />
+        <Box x={630} y={22} w={210} h={70} title="Is it clearly better?" sub="and do its ranges hold?" />
 
         <path
           d="M 735 92 L 735 125"
@@ -382,7 +372,6 @@ export function LearningLoopDiagram() {
   );
 }
 
-/** How the composite ranking score is assembled. */
 export function CompositeDiagram({ efficiency }: { efficiency: number }) {
   const production = 100 - efficiency;
   const splitX = 40 + (760 * efficiency) / 100;
@@ -421,16 +410,15 @@ export function CompositeDiagram({ efficiency }: { efficiency: number }) {
   );
 }
 
-/** What the model can and cannot reach. */
 export function CeilingDiagram() {
   return (
-    <Figure caption="Measured, not guessed: even a model that knew each player's true season-long average in advance would only be about 7% better than ours. Most of a single game is genuinely unpredictable.">
+    <Figure caption="Even a model that knew each player's true season-long average in advance would only be about 7% better than mine. Most of a single game can't be predicted.">
       <svg viewBox="0 0 860 150" className="block h-auto w-full" role="img" aria-labelledby="ceiling-t ceiling-d">
         <title id="ceiling-t">How much room for improvement exists</title>
         <desc id="ceiling-d">
-          A simple recent average is off by about 5.4 fantasy points a game. Our model is off by
+          A simple recent average is off by about 5.4 fantasy points a game. My model is off by
           about 5.27. A perfect knower of each player&apos;s true average would still be off by about
-          5.07. The gap between our model and that limit is under seven percent.
+          5.07. The gap between my model and that limit is under seven percent.
         </desc>
         <Defs />
         {[

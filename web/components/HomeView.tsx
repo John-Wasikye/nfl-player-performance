@@ -154,7 +154,6 @@ function TopFive({ meta, position }: { meta: Meta; position: Position }) {
 }
 
 
-/** The top few projections at one position for the upcoming week. */
 function TopProjected({ index, position }: { index: PredictionsIndex; position: Position }) {
   const { data, error, loading } = useJson<PredictionsFile>(
     `predictions/${index.season}/${index.week}/${position}.json`,
@@ -203,7 +202,6 @@ function TopProjected({ index, position }: { index: PredictionsIndex; position: 
   );
 }
 
-/** The projections half of the home page. Hidden entirely if no week has been published. */
 function Projections() {
   const { data: index } = useJson<PredictionsIndex>("predictions/latest.json");
   if (!index) return null;
@@ -211,7 +209,7 @@ function Projections() {
     <section aria-label="Next week's projections">
       <SectionTitle
         title={`Projected for week ${index.week}`}
-        description="The highest projected scores at each position, each with the range it sits in. A single number would claim more certainty than one game allows."
+        description="The highest projected scores at each position, with the range each one could land in."
         action={
           <Badge tone={index.status === "locked" ? "accent" : "warn"}>
             {index.status === "locked" ? "Locked before kickoff" : "Preliminary"}
@@ -225,8 +223,7 @@ function Projections() {
         <Card as="article" className="flex flex-col justify-center gap-2 bg-accent-soft p-6">
           <h3 className="font-semibold">How accurate are these?</h3>
           <p className="text-sm text-muted">
-            Every projection is written down before kickoff and never changed, then graded against
-            what actually happened. The record is public, including the ideas that failed.
+            Projections are locked before kickoff and graded afterwards. The record is public, including the changes that didn&apos;t work.
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             <Link href="/report-card/" className="text-sm font-medium text-accent hover:underline">
@@ -255,11 +252,7 @@ export function HomeView() {
           NFL player rankings and predictions
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted">
-          Two things, kept separate on purpose. The{" "}
-          <strong className="font-semibold text-fg">rankings</strong> score what has already happened
-          this season. The <strong className="font-semibold text-fg">projections</strong> say what
-          each player is likely to do next, with an honest range and a public record of how often
-          they have been right.
+          The <strong className="font-semibold text-fg">rankings</strong> score what players have done so far this season. The <strong className="font-semibold text-fg">projections</strong> estimate what each one will do next, with a range and a public record of how they have done.
         </p>
         {meta && <StatusPills meta={meta} />}
         {loading && <Skeleton className="mt-5 h-7 w-64" />}

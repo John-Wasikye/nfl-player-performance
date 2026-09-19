@@ -21,7 +21,7 @@ export function backtestVerdict(b: BacktestHeadline): string[] {
   const lines: string[] = [];
   if (worse.length === usable.length && usable.length > 0) {
     lines.push(
-      `The current setting (${formatPercent(b.current_efficiency_weight)} efficiency) ranked next week's fantasy points less accurately than simply ranking by fantasy points per game at every position, on seasons it was not tuned on.`,
+      `The current setting (${formatPercent(b.current_efficiency_weight)} efficiency) ranked next week's fantasy points less accurately than ranking by fantasy points per game at every position, on seasons it was not tuned on.`,
     );
   } else if (worse.length > 0) {
     lines.push(
@@ -46,7 +46,7 @@ function Backtest({ backtest }: { backtest: BacktestHeadline }) {
     <section aria-label="Backtest">
       <SectionTitle
         title="How well do the rankings predict next week?"
-        description={`We tested every week's ranking against the following week's fantasy points. The efficiency weight was chosen on ${backtest.tuning_seasons.join(", ")} and checked on ${backtest.held_out_seasons.join(", ")}, which it had not seen.`}
+        description={`I tested every week's ranking against the following week's fantasy points. The efficiency weight was chosen on ${backtest.tuning_seasons.join(", ")} and checked on ${backtest.held_out_seasons.join(", ")}, which it had not seen.`}
       />
       <Card className="overflow-x-auto p-0">
         <table className="w-full text-sm">
@@ -139,7 +139,7 @@ export function MethodologyView() {
     <div className="rise space-y-12">
       <PageHeader
         title="How the rankings work"
-        subtitle="The rankings score what has already happened this season. This page explains how a player's composite score is put together, what each setting means, and how well the whole thing actually holds up when tested."
+        subtitle="The rankings score what has already happened this season. This page covers how a player's composite score is put together, what each setting means, and how well the rankings hold up in testing."
       />
       <MethodologySwitch active="rankings" />
 
@@ -195,8 +195,8 @@ export function MethodologyView() {
         <Card className="p-6">
           <h2 className="font-semibold">Fantasy points</h2>
           <p className="mt-2 text-sm text-muted">
-            The second ranking is simply season-to-date PPR fantasy points (one point per reception). The
-            data source does not score kickers, so we use common standard scoring for them.
+            The second ranking is season-to-date PPR fantasy points (one point per reception). The
+            data source does not score kickers, so I use common standard scoring for them.
           </p>
           {data && <p className="mt-3 text-sm text-muted">{data.kicker_scoring}</p>}
         </Card>

@@ -1,11 +1,5 @@
 "use client";
 
-// How the predictions work, in plain English.
-//
-// Written for someone who has never read a statistics paper. Every claim with a number behind it is
-// a real measurement from the research, and where the answer is unflattering it says so, because a
-// methodology page that only explains the good parts is advertising.
-
 import Link from "next/link";
 import {
   CeilingDiagram,
@@ -27,12 +21,14 @@ function Q({ q, children }: { q: string; children: React.ReactNode }) {
   );
 }
 
+const linkClass = "text-accent underline underline-offset-2";
+
 export function PredictionMethodologyView() {
   return (
     <div className="rise">
       <PageHeader
         title="How the predictions work"
-        subtitle="Every week the site projects what each player will score in their next game. This page explains how that number is produced, what it can and cannot do, and how you can check whether it has been any good."
+        subtitle="How each weekly projection is produced, who gets one, and how I check whether the projections have been any good."
       />
       <MethodologySwitch active="predictions" />
 
@@ -42,22 +38,29 @@ export function PredictionMethodologyView() {
           <Card className="p-6">
             <ol className="list-decimal space-y-2 pl-5 text-pretty">
               <li>
-                A projection is mostly built from what a player has been doing lately, because that
-                turns out to matter far more than anything else we could add.
+                A projection is built mostly from what the player has done recently. That mattered far
+                more than anything else I tried adding.
               </li>
               <li>
-                Every projection comes with a range, because one game of football is genuinely
-                unpredictable and a single number would claim a precision that does not exist.
+                Every projection has a range, because one game is too noisy for a single number to mean
+                much.
               </li>
               <li>
-                Projections are written down before kickoff and never changed, so the accuracy we
-                publish is forecasting rather than hindsight.
+                Projections are written down before kickoff and never changed, so the accuracy record
+                reflects real forecasts.
               </li>
               <li>
-                Improvements have to prove themselves on past seasons before they ship, and the ones
+                A change to the model only goes in if it beats the current one on past seasons. Changes
                 that fail are published too.
               </li>
             </ol>
+            <p className="mt-4 text-sm text-muted">
+              The analysis behind all of this is in the{" "}
+              <Link href="/methodology/predictions/research/" className={linkClass}>
+                research paper
+              </Link>
+              .
+            </p>
           </Card>
         </section>
 
@@ -65,40 +68,36 @@ export function PredictionMethodologyView() {
           <SectionTitle title="The weekly cycle" />
           <WeeklyCycleDiagram />
           <p className="text-muted">
-            The step that does the work is the lock. Once a week&apos;s projections are written to
-            disk they cannot be rewritten, even by us. Without that, a later run could quietly
-            regenerate last week&apos;s numbers with a better model and publish the improved score as
-            though it had been forecast in advance, and the{" "}
-            <Link href="/report-card/" className="text-accent underline underline-offset-2">
+            The lock is the step that matters. Once a week&apos;s projections are written to disk they
+            can&apos;t be rewritten, including by me. Without that, a later run could regenerate last
+            week&apos;s numbers with a better model and I could publish the improved score as if it had
+            been forecast in advance. The{" "}
+            <Link href="/report-card/" className={linkClass}>
               Report card
             </Link>{" "}
-            would be measuring nothing at all.
+            would then be measuring nothing. I run the lock by hand for now, so the record starts once
+            the first week has been locked and played.
           </p>
         </section>
 
         <section>
           <SectionTitle
             title="How a projection is produced"
-            description="A regularized linear model and gradient boosting, averaged."
+            description="A ridge regression and gradient boosting, averaged."
           />
           <ModelDiagram />
           <div className="space-y-3 text-muted">
             <p>
-              The inputs are the things you would expect: how many points the player has scored
-              recently, how much of his team&apos;s work he has been getting, who he is playing, whether
-              the game is at home, what the betting line says about how high-scoring it will be, and
-              the weather if the stadium is open.
+              The inputs are recent scoring, how much of the team&apos;s work the player gets, the
+              opponent, whether the game is at home, the betting line, and the roof. Weather is in the
+              model too, but I haven&apos;t connected a forecast yet, so for games that haven&apos;t been
+              played it uses typical values.
             </p>
             <p>
-              Those feed two different models. One is a straight-line model that is steady and hard to
-              fool. The other builds decision trees and can spot combinations the first one misses.
-              Their answers are averaged.
-            </p>
-            <p className="text-fg">
-              More elaborate approaches were tested and did not improve on this. The constraint is
-              the sport rather than the algorithm: a regularized linear model reached 0.280
-              held-out R-squared, gradient boosting 0.288, and their average 0.289, against 0.232
-              for a plain recent average.
+              The two models are a ridge regression, which is linear and stable, and gradient boosting
+              (LightGBM), which can pick up combinations of inputs. I average them. More elaborate
+              approaches didn&apos;t help. On held-out weeks the ridge reached an R-squared of 0.280,
+              boosting 0.288 and the average 0.289, against 0.232 for a plain recent average.
             </p>
           </div>
         </section>
@@ -111,16 +110,16 @@ export function PredictionMethodologyView() {
           <RangeDiagram />
           <div className="space-y-3 text-muted">
             <p>
-              A projection of 24.3 points reads like a promise. It is not one. What the model actually
-              believes is closer to &ldquo;probably somewhere between 11 and 34, most likely around
-              24&rdquo;, and hiding that behind one number would be misleading.
+              A projection of 24.3 points doesn&apos;t mean the player will score 24.3. The model&apos;s
+              range for him is 10.7 to 34.0, and about four times in five the real score should land
+              inside it.
             </p>
             <p>
-              The range is checked rather than asserted. We measure how often the real score actually
-              landed inside the published range on weeks the model had never seen, and widen the
-              ranges until that figure is right. The target is 80%, and the last measurement was{" "}
-              <span className="font-medium text-fg">79.7%</span>. If it drifts, the Report card says
-              so.
+              I check that instead of assuming it. Two extra models estimate the 10th and 90th
+              percentiles, and a conformal correction widens them by however much they turned out to be
+              too narrow on weeks they hadn&apos;t seen. In the backtest the real score landed inside the
+              published range <span className="font-medium text-fg">79.7%</span> of the time, against a
+              target of 80%. The Report card shows the same figure for live weeks.
             </p>
           </div>
         </section>
@@ -128,26 +127,24 @@ export function PredictionMethodologyView() {
         <section>
           <SectionTitle
             title="Which players are projected"
-            description="Training, calibration and publication use deliberately different populations."
+            description="Training, calibration and publication use different groups of players."
           />
           <PopulationDiagram />
           <div className="space-y-3 text-muted">
             <p>
-              Players with a very small role are left out on purpose. We measured the model against
-              the simplest possible alternative, just using a player&apos;s own recent average, and
-              below about four points a game{" "}
-              <span className="font-medium text-fg">the model was worse than that average</span>.
-              Publishing those projections would make the site less useful than doing nothing.
+              Players with a small role don&apos;t get a projection. I compared the model with the
+              simplest alternative, a player&apos;s own recent average, and below about four points a
+              game <span className="font-medium text-fg">the model did worse than that average</span>.
+              Publishing those projections would have made the site worse.
             </p>
             <p>
               Players ruled <span className="font-medium text-fg">Out</span> or{" "}
-              <span className="font-medium text-fg">Doubtful</span> are not shown at all rather than
-              shown at zero, because a zero reads like &ldquo;he will play badly&rdquo; when we mean
-              &ldquo;he is not playing&rdquo;. Players listed{" "}
-              <span className="font-medium text-fg">Questionable</span> keep their projection for if
-              they play, with the chance they do beside it. That chance is measured from how often
-              questionable players actually took the field: about 63% overall, and only about 35% for
-              quarterbacks.
+              <span className="font-medium text-fg">Doubtful</span> are left off instead of shown at
+              zero, because a zero reads as &ldquo;he will play badly&rdquo; when I mean &ldquo;he
+              isn&apos;t playing&rdquo;. A player listed{" "}
+              <span className="font-medium text-fg">Questionable</span> keeps his projection for if he
+              plays, with the chance he does next to it. That chance comes from how often Questionable
+              players played between 2021 and 2025: about 63% overall and 35% for quarterbacks.
             </p>
           </div>
         </section>
@@ -155,25 +152,23 @@ export function PredictionMethodologyView() {
         <section>
           <SectionTitle
             title="The promotion gate"
-            description="How a change is adopted, and why published accuracy cannot regress."
+            description="How a change is adopted, and why published accuracy can't regress."
           />
           <LearningLoopDiagram />
           <div className="space-y-3 text-muted">
             <p>
-              Each week the system summarises where it missed. One new idea is written as actual code
-              that measures something the model has never seen. That idea is then replayed against
-              five past seasons, side by side with the current model, on weeks neither of them was
-              trained on.
+              Each week the pipeline reports where the model missed. I have Claude write one new
+              feature from that report, as code, and the harness replays five past seasons with and
+              without it, on weeks neither version was trained on.
             </p>
             <p>
-              It only ships if it is clearly better and its ranges are still honest. A tie keeps the
-              current model. That is what makes published accuracy a ratchet: it can click forward or
-              hold, but it does not slip backwards because nothing untested ever gets in.
+              The change is adopted only if it is clearly better and the ranges still cover about 80%.
+              A tie keeps the current model, so published accuracy can hold or improve but not slip.
             </p>
-            <p className="text-fg">
-              Ideas that fail are published too, with their numbers, on the Report card. Most ideas
-              fail. A page showing only the ones that worked would suggest a system that improves
-              whenever someone touches it, which is the opposite of what we found.
+            <p>
+              Changes that fail go on the Report card with their numbers. Most of them fail. The first
+              feature I tried, a ratio of recent form to season average, improved 4,231 of 8,464
+              predictions, which is a coin flip, so it was rejected.
             </p>
           </div>
         </section>
@@ -185,56 +180,56 @@ export function PredictionMethodologyView() {
           />
           <CeilingDiagram />
           <p className="text-muted">
-            An oracle given each player&apos;s true season-long average in advance — more than any
-            model can know — would still be wrong by about five fantasy points a game, because a
-            single game is dominated by events that are not forecastable: a tipped pass, a
-            goal-line decision, a fumble. The remaining gap between this engine and that bound is
-            under 7%, which is the honest budget for any future improvement.
+            An oracle that knew each player&apos;s true season-long average in advance, which is more
+            than any model can know, would still miss by about five fantasy points a game. A single game
+            is dominated by things nobody can forecast: a tipped pass, a goal-line call, a fumble. My
+            model is under 7% away from that bound, which is all the room there is for improvement.
           </p>
         </section>
 
         <section>
           <SectionTitle title="Limitations" />
           <Card className="px-6 py-2">
-            <Q q="It targets the conditional mean, not the tail.">
+            <Q q="It aims at the likely outcome, not the extremes.">
               <p>
                 The biggest misses are almost always players who scored far more than expected. A
-                model aims at the most likely outcome, and a 34-point game from someone averaging 8
-                is, by definition, not the most likely outcome. The range is where that possibility
-                lives.
+                34-point game from someone averaging 8 isn&apos;t the most likely result, and the range
+                is where that possibility shows up.
               </p>
             </Q>
             <Q q="It only sees what is in the data.">
               <p>
-                A coach saying something in a press conference, a player&apos;s personal
-                circumstances, a scheme change nobody has recorded yet: none of that reaches the
-                model. It sees box scores, schedules, injury reports and betting lines.
+                A coach&apos;s comments, a scheme change nobody has recorded yet or a player&apos;s
+                personal situation never reach it. It works from box scores, schedules, injury reports
+                and betting lines.
               </p>
             </Q>
-            <Q q="Late scratches are measured separately.">
+            <Q q="Late scratches aren't counted against it.">
               <p>
-                If a player is ruled out ninety minutes before kickoff, that is an availability
-                question, not a scoring one. Those are tracked separately rather than graded as
-                missed projections.
+                A player ruled out shortly before kickoff isn&apos;t graded against the points model.
+                That is an availability question, and I track it separately.
               </p>
             </Q>
-            <Q q="Accuracy is weakest early in a season.">
+            <Q q="It is weakest early in the season.">
+              <p>Projections lean on recent form, and in week 1 there isn&apos;t much of it.</p>
+            </Q>
+            <Q q="It only projects fantasy points.">
               <p>
-                Projections lean on recent form, and in week 1 there is very little of it. Accuracy
-                against the simple baseline is widest early and narrows as the season goes on.
+                I haven&apos;t built projections for yards or touchdowns. The research paper explains
+                why they are harder to predict than volume.
               </p>
             </Q>
           </Card>
         </section>
 
         <section>
-          <SectionTitle title="Verify it" />
+          <SectionTitle title="Check it yourself" />
           <div className="grid gap-4 sm:grid-cols-3">
             <Card className="p-6">
               <h3 className="font-semibold">The Report card</h3>
               <p className="mt-1.5 text-sm text-muted">
-                Week by week accuracy against the simple baselines, how often the ranges were right,
-                and every change that has been tried, including the failures.
+                Weekly accuracy against simple baselines, how often the ranges held, and every change
+                I&apos;ve tried, including the ones that failed.
               </p>
               <Link
                 href="/report-card/"
@@ -246,14 +241,14 @@ export function PredictionMethodologyView() {
             <Card className="p-6">
               <h3 className="font-semibold">The research paper</h3>
               <p className="mt-1.5 text-sm text-muted">
-                Sixteen studies on six seasons, written before any prediction code existed,
-                including the ones whose results ruled out the original design.
+                What predicts a game and what doesn&apos;t, how much of it can be predicted at all, and
+                the results that ruled out my first design.
               </p>
               <Link
-                href="/research/"
+                href="/methodology/predictions/research/"
                 className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
               >
-                Read the evidence
+                Read the paper
               </Link>
             </Card>
             <Card className="p-6">

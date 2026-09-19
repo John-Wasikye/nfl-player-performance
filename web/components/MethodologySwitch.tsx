@@ -1,7 +1,5 @@
 "use client";
 
-// The two methodology pages answer different questions and people arrive at the wrong one, so each
-// carries a visible way across rather than relying on the single "Methodology" item in the header.
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
@@ -18,21 +16,11 @@ const PAGES = [
     label: "How the predictions work",
     blurb: "Projecting what happens next",
   },
-  {
-    key: "research",
-    href: "/research/",
-    label: "Research paper",
-    blurb: "The full evidence, 8,700 words",
-  },
 ] as const;
 
-export function MethodologySwitch({
-  active,
-}: {
-  active: "rankings" | "predictions" | "research";
-}) {
+export function MethodologySwitch({ active }: { active: "rankings" | "predictions" }) {
   return (
-    <nav aria-label="Methodology sections" className="grid gap-3 sm:grid-cols-3">
+    <nav aria-label="Methodology sections" className="grid gap-3 sm:grid-cols-2">
       {PAGES.map((page) => {
         const current = page.key === active;
         return (

@@ -3,9 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// Automated accessibility checks (WCAG 2.2 A and AA) on every kind of page, in both themes. These
-// catch contrast, missing labels, and bad structure. They do not replace testing with a screen
-// reader and the keyboard, which the plan also calls for.
+// axe checks (WCAG 2.2 A and AA) on each kind of page, in both themes. They don't replace testing
+// with a screen reader.
 
 const fixture = (path: string) => JSON.parse(readFileSync(join(__dirname, "fixtures/v1", path), "utf8"));
 const topQuarterback: string = fixture("rankings/2026/2/QB.json").players[0].player_id;
@@ -48,7 +47,7 @@ const PAGES: Array<{ name: string; path: string; ready: (page: Page) => Promise<
   },
   {
     name: "research paper",
-    path: "/research/",
+    path: "/methodology/predictions/research/",
     ready: (page) => page.getByRole("navigation", { name: "Paper contents" }).waitFor(),
   },
   {

@@ -58,7 +58,7 @@ export function PlayerView() {
   if (error) {
     return (
       <ErrorState
-        title={error.kind === "not-found" ? "We couldn't find that player" : "Couldn't load the player"}
+        title={error.kind === "not-found" ? "Couldn't find that player" : "Couldn't load the player"}
         message={
           error.kind === "not-found"
             ? "They may not be ranked this season. Try searching for another player."

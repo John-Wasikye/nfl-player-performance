@@ -1,17 +1,5 @@
 "use client";
 
-// The Predictions page.
-//
-// Two things here are deliberate and easy to get wrong if they are treated as styling choices.
-//
-// The range is shown next to every projection, never hidden behind a hover or a tooltip. A single
-// number implies a precision that does not exist: one game of fantasy football is noisy enough that
-// the honest 80% range is about 16 points wide, and a reader who sees only "12.4" will believe
-// something the model is not claiming.
-//
-// A player who might not play shows his score *if he plays* as the main figure, with the chance of
-// playing beside it. Leading with the availability-adjusted number would quietly mix two different
-// questions — how good is he, and will he be there — into one figure that answers neither.
 import Link from "next/link";
 import { useJson } from "@/lib/api";
 import { formatPercent, formatPoints } from "@/lib/format";
@@ -33,7 +21,6 @@ import {
   Skeleton,
 } from "./ui";
 
-/** Where a projection sits inside its own range, as a percentage for the bar. */
 function positionInRange(player: PredictedPlayer): number {
   const span = player.high - player.low;
   if (span <= 0) return 50;
@@ -95,7 +82,6 @@ function PlayerRow({ player, rank }: { player: PredictedPlayer; rank: number }) 
 }
 
 
-/** Column labels. The numbers meant nothing without them. */
 function ColumnHeadings() {
   return (
     <div
@@ -121,7 +107,7 @@ function Key() {
         <div className="flex gap-2">
           <dt className="shrink-0 font-medium">Projected</dt>
           <dd className="text-muted">
-            The single most likely PPR fantasy score for this game.
+            The most likely PPR fantasy score for this game.
           </dd>
         </div>
         <div className="flex gap-2">
@@ -171,7 +157,7 @@ export function PredictionsView({ position }: { position: Position }) {
         title={`${POSITION_NAMES[position]} projections`}
         subtitle={
           index.data
-            ? `Week ${index.data.week} of the ${index.data.season} season. Every projection shows the 80% range it sits in, because a single number would claim more certainty than one game allows.`
+            ? `Week ${index.data.week} of the ${index.data.season} season. Each projection comes with the range it could land in.`
             : undefined
         }
       >
@@ -180,7 +166,7 @@ export function PredictionsView({ position }: { position: Position }) {
             {index.data.status === "locked" ? (
               <Badge tone="accent">Locked before kickoff</Badge>
             ) : (
-              <Badge tone="warn">Preliminary — may still change</Badge>
+              <Badge tone="warn">Preliminary, may still change</Badge>
             )}
             <Link href="/report-card/" className="text-sm text-muted underline-offset-2 hover:underline">
               How accurate have these been?
@@ -202,7 +188,7 @@ export function PredictionsView({ position }: { position: Position }) {
       ) : !file.data || file.data.players.length === 0 ? (
         <EmptyState
           title="No projections this week"
-          message={`No ${position} has enough recent playing time to project. Players with a very small role are left out on purpose: the model was measured doing worse than their own recent average, so a projection would be misleading.`}
+          message={`No ${position} qualifies this week. Players with a small role are left out because the model did worse than their own recent average on them.`}
         />
       ) : (
         <>
@@ -219,8 +205,7 @@ export function PredictionsView({ position }: { position: Position }) {
       )}
 
       <p className="mt-4 text-sm text-muted">
-        Players ruled Out or Doubtful are not shown at all, rather than shown at zero. Anyone listed
-        Questionable keeps his projection for if he plays, with the chance he does beside it.
+        Players ruled Out or Doubtful are left off instead of shown at zero. A Questionable player keeps his projection for if he plays, with the chance he does next to it.
       </p>
     </>
   );

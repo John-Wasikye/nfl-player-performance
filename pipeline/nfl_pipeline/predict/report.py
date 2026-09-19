@@ -79,7 +79,7 @@ def verdict(weeks: list[GradedWeek], season_to_date: GradedWeek | None) -> str:
         parts.append(
             f"A player's {readable} would have been off by "
             f"{season_to_date.baseline_mae[best]:.2f}, so the model is ahead by only "
-            f"{margin:.2f} points, which is inside the margin this project treats as noise."
+            f"{margin:.2f} points, which is inside the margin I treat as noise."
         )
     else:
         parts.append(

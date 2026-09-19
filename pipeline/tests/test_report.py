@@ -49,7 +49,7 @@ def test_a_margin_inside_the_noise_band_is_not_dressed_up_as_a_win():
 
     text = verdict(weeks, combine(weeks))
 
-    assert "inside the margin this project treats as noise" in text
+    assert "inside the margin I treat as noise" in text
 
 
 def test_a_real_margin_is_stated_as_one():

@@ -21,7 +21,7 @@ export default function AboutPage() {
     <div className="rise space-y-10">
       <PageHeader
         title="About & data"
-        subtitle="An independent project that turns public NFL data into daily position rankings."
+        subtitle="An independent project that turns public NFL data into position rankings and weekly projections."
       />
 
       <section aria-label="Data sources" className="grid gap-4 md:grid-cols-2">

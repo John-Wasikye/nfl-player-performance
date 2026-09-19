@@ -1,6 +1,5 @@
 "use client";
 
-// Small building blocks used across the site.
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
@@ -185,7 +184,6 @@ export function EmptyState({ title, message }: { title: string; message?: string
   );
 }
 
-/** Position navigation, as real links so each position has its own URL. */
 export function PositionTabs({ active }: { active?: Position }) {
   return (
     <nav aria-label="Positions" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
@@ -212,7 +210,6 @@ export function PositionTabs({ active }: { active?: Position }) {
   );
 }
 
-/** A two-or-more option toggle, used to switch between the composite and fantasy views. */
 export function Segmented<T extends string>({
   label,
   value,

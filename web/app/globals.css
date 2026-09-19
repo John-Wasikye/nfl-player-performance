@@ -168,9 +168,7 @@ dialog::backdrop {
   backdrop-filter: blur(3px);
 }
 
-/* The research paper (/research). Generated HTML, so the styling has to live here rather than on
-   the elements themselves. Tuned for long-form reading: a measure that stays comfortable, tables
-   that scroll rather than overflow, and headings that clear the sticky header when linked to. */
+/* Styles for the research paper, which is generated HTML. */
 .paper {
   color: var(--muted);
   line-height: 1.7;
@@ -264,7 +262,6 @@ dialog::backdrop {
   margin: 1rem 0;
   padding-left: 1rem;
 }
-/* Tables carry most of the evidence, so they get the most attention. */
 .paper-table {
   overflow-x: auto;
   margin: 1rem 0;

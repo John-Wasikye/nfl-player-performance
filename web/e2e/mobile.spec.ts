@@ -14,7 +14,7 @@ test.describe("on a phone", () => {
     "/predictions/QB/",
     "/report-card/",
     "/methodology/predictions/",
-    "/research/",
+    "/methodology/predictions/research/",
     "/methodology/",
     "/about/",
   ]) {
@@ -44,7 +44,6 @@ test.describe("on a phone", () => {
       "Projections",
       "Report card",
       "Methodology",
-      "Research",
       "About",
     ]) {
       await expect(nav.getByRole("link", { name })).toBeInViewport();

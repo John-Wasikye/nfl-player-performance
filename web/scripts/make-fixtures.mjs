@@ -56,8 +56,6 @@ for (const name of readdirSync(join(source, "players"))) {
     players += 1;
   }
 }
-// ---------------------------------------------------------------- predictions
-
 const PREDICTED_KEPT = 8;
 const index = read(join(source, "predictions", "latest.json"));
 write(join(target, "predictions", "latest.json"), index);
@@ -73,10 +71,8 @@ for (const position of index.positions) {
 }
 cpSync(join(source, "ledger.json"), join(target, "ledger.json"));
 
-// The accuracy file is written by hand rather than copied, because no week has been locked and
-// graded yet, so the real file is empty and would leave the Report card's whole table, its margin
-// colouring and its frozen-model control line untested. These numbers are invented; their job is
-// to exercise the states the page has to handle, including the unflattering ones.
+// Written by hand because no week has been graded yet and the real file is empty. The numbers are
+// made up, to cover the states the Report card has to show, including a losing week.
 const gradedWeek = (week, mae, baseline, coverage, frozen, players) => ({
   season: meta.season,
   week,
@@ -88,11 +84,11 @@ const gradedWeek = (week, mae, baseline, coverage, frozen, players) => ({
   frozen_model_mae: frozen,
 });
 const weeks = [
-  // Comfortably ahead, ranges honest.
+  // Comfortably ahead.
   gradedWeek(1, 5.12, 5.41, 0.801, 5.33, 331),
-  // Ahead, but by less than the 0.15 the project treats as noise: must not render as a win.
+  // Ahead by less than 0.15, which must not render as a win.
   gradedWeek(2, 5.33, 5.4, 0.792, 5.36, 338),
-  // Behind the baseline outright. The page has to be willing to show this.
+  // Behind the baseline.
   gradedWeek(3, 5.58, 5.44, 0.774, 5.41, 344),
 ];
 const pooled = (pick) =>
@@ -124,7 +120,7 @@ write(join(target, "accuracy", `${meta.season}.json`), {
   verdict:
     "Across 3 graded weeks and 1,013 player-games, projections were off by 5.34 fantasy points on " +
     "average. A player's recent average would have been off by 5.42, so the model is ahead by only " +
-    "0.08 points, which is inside the margin this project treats as noise. The 80% ranges contained " +
+    "0.08 points, which is inside the margin I treat as noise. The 80% ranges contained " +
     "the real result 79% of the time. It is level with a model frozen before the season, so nothing " +
     "added this year has made a measurable difference yet.",
 });

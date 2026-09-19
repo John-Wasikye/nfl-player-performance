@@ -1,16 +1,5 @@
 "use client";
 
-// The Report card: how the published projections actually did.
-//
-// The page exists because a prediction site with no public accuracy record is asking to be taken on
-// faith. So it is built to be capable of embarrassing itself. The verdict comes from the pipeline,
-// generated from the graded numbers with no branch that can produce an encouraging line when the
-// numbers are poor, and this page renders it as written.
-//
-// Every accuracy figure is shown next to its player count. Mean error depends on which players are
-// included — better players are more variable, so a stricter population *raises* the number while
-// the model is doing more work — and a figure quoted without its population invites exactly the
-// wrong comparison.
 import { useJson } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
@@ -29,7 +18,7 @@ function Margin({ week }: { week: GradedWeek }) {
   const baseline = bestBaseline(week);
   if (!baseline) return <span className="text-muted">—</span>;
   const margin = baseline.mae - week.mae;
-  // Ahead, behind, or too close to call. The middle case is not a win and is not shown as one.
+  // Under 0.15 ahead counts as too close to call, so it isn't coloured as a win.
   const tone = margin >= 0.15 ? "up" : margin <= -0.05 ? "down" : "neutral";
   return (
     <span
@@ -104,7 +93,7 @@ function LedgerRow({ entry }: { entry: LedgerEntry }) {
       <p className="mt-1 text-xs text-muted tnum">
         {judgedOnMargin ? "Margin over baseline" : "Average error"} {entry.champion_score} →{" "}
         {entry.challenger_score}
-        {judgedOnMargin && " (not average error: this change altered which players are predicted)"}
+        {judgedOnMargin && " (not average error, because this change altered which players are predicted)"}
       </p>
     </li>
   );
@@ -125,7 +114,7 @@ export function ReportCardView() {
     <>
       <PageHeader
         title="Report card"
-        subtitle="Every projection is written down before kickoff and never changed afterwards, so this page measures forecasting rather than hindsight. It is built to be able to say the model is losing."
+        subtitle="Projections are written down before kickoff and never changed, so this page measures forecasts, not hindsight. If the model is losing to a plain average, it says so here."
       />
 
       {error ? (
@@ -166,12 +155,12 @@ export function ReportCardView() {
           <section>
             <SectionTitle
               title="Week by week"
-              description="Average error is only meaningful next to its player count, so both are shown. It cannot be compared across weeks with very different numbers of players."
+              description="Average error depends on how many and which players are included, so each week shows its player count."
             />
             {graded.length === 0 ? (
               <EmptyState
                 title="Nothing graded yet"
-                message="Projections are graded once the week's games have been played. Until then there is nothing here, and saying otherwise would be inventing a record."
+                message="A week is graded once its games have been played."
               />
             ) : (
               <Card>
@@ -183,7 +172,7 @@ export function ReportCardView() {
           <section>
             <SectionTitle
               title="What has been tried"
-              description="Every change tested against the current model, including the ones that failed. Nothing ships unless it beats the incumbent on weeks neither model was trained on."
+              description="Every change I've tested against the current model, including the ones that failed. A change is kept only if it beats the current model on weeks neither was trained on."
             />
             {ledger.data && ledger.data.entries.length > 0 ? (
               <Card>
@@ -205,34 +194,25 @@ export function ReportCardView() {
                 <div>
                   <dt className="font-medium">Average error</dt>
                   <dd className="text-muted">
-                    How far the projection was from the real score, in fantasy points, on average. It
-                    depends on which players are included: better players are more variable, so a
-                    stricter selection raises this number even when the model is doing better. Never
-                    compare it across different groups of players.
+                    The average distance between the projection and the real score, in fantasy points. Better players are more variable, so it goes up when the player group gets stricter even if the model improves. Only compare it across weeks with the same group of players.
                   </dd>
                 </div>
                 <div>
                   <dt className="font-medium">Margin over baseline</dt>
                   <dd className="text-muted">
-                    How much better than simply using the player&apos;s own recent average. This is
-                    the number that matters, because it is measured on the same players either way.
-                    Anything under 0.15 is treated as too small to claim.
+                    How much better than using the player&apos;s own recent average, measured on the same players. I treat anything under 0.15 as too small to claim.
                   </dd>
                 </div>
                 <div>
                   <dt className="font-medium">80% range hit</dt>
                   <dd className="text-muted">
-                    How often the real score landed inside the range shown with each projection. It
-                    should be close to 80%. Much lower means the ranges are too confident; much
-                    higher means they are wider than they need to be.
+                    How often the real score landed inside the range shown with the projection. It should be close to 80%. Much lower means the ranges are too narrow, and much higher means they are wider than they need to be.
                   </dd>
                 </div>
                 <div>
                   <dt className="font-medium">The frozen control</dt>
                   <dd className="text-muted">
-                    A model fixed before the season and never updated, graded on the same games. If
-                    the live model is not beating it, nothing added during the season has helped, and
-                    this page says so.
+                    A model fixed before the season and never updated, scored on the same games. If the live model isn&apos;t beating it, nothing I&apos;ve added during the season has helped.
                   </dd>
                 </div>
               </dl>
