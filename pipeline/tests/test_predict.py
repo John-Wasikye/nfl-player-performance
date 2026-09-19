@@ -501,7 +501,10 @@ def test_a_player_who_never_took_the_field_is_not_graded_as_a_miss(weekly):
     predictions, _, root = weekly
     locked = lock_week(predictions, root)
     played = walkable_frame()
-    absent = played.player_id.iloc[0]
+    # Taken from the locked rows, not from the fixture: not every player in the fixture is
+    # projected (low-volume ones are filtered out), so picking from the fixture would sometimes
+    # choose someone who was never in the locked week and the count would come out unchanged.
+    absent = locked.rows.player_id.iloc[0]
     played.loc[
         (played.season == 2024) & (played.week == 18) & (played.player_id == absent), "actual_ppr"
     ] = np.nan
@@ -535,6 +538,12 @@ def test_players_ruled_out_are_left_out_of_the_published_week():
     future = (features.season == 2024) & (features.week == 18)
     features.loc[future, "actual_ppr"] = np.nan
     benched = features.player_id.iloc[0]
+    # Make him comfortably worth projecting, so that if he is missing from the output it is
+    # because he was ruled out and not because the eligibility filter had already dropped him.
+    # Otherwise this test could pass while proving nothing.
+    features.loc[future & (features.player_id == benched), "ppr_mean5"] = 12.0
+    assert benched in set(predict_week(features, season=2024, week=18).rows.player_id)
+
     features.loc[future & (features.player_id == benched), "injury_status"] = "Out"
 
     predictions = predict_week(features, season=2024, week=18)
