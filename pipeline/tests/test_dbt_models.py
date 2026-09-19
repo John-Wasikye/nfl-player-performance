@@ -97,6 +97,231 @@ def stat_line(player_id, name, position, team, **overrides):
     return line
 
 
+def write_advanced_sources(root: Path) -> None:
+    """Minimal files for the richer sources, so the full model graph builds in tests.
+
+    The values do not matter; the models left join them and must cope with thin coverage. What
+    matters is that every model in the graph can be built, including the rankings that now read
+    fct_player_week_advanced.
+    """
+    # Ten pass plays, so a receiver's targets never exceed his pass snaps (as in real data).
+    write_parquet(
+        root,
+        "pbp",
+        [
+            {
+                "game_id": "2026_01_OAK_KC",
+                "play_id": i,
+                "season": 2026,
+                "week": 1,
+                "season_type": "REG",
+                "posteam": "KC",
+                "defteam": "LV",
+                "play_type": "pass",
+                "qb_dropback": 1,
+                "pass_attempt": 1,
+                "rush_attempt": 0,
+                "yardline_100": 40,
+                "down": 1,
+                "ydstogo": 10,
+                "score_differential": 0,
+                "epa": 0.5,
+                "air_yards": 10,
+                "receiver_player_id": "P2",
+                "rusher_player_id": None,
+                "passer_player_id": "P1",
+                "touchdown": 0,
+                "pass_touchdown": 0,
+                "rush_touchdown": 0,
+                "td_player_id": None,
+                "complete_pass": 1,
+                "yards_gained": 12,
+            }
+            for i in range(1, 11)
+        ],
+        season=2026,
+    )
+    write_parquet(
+        root,
+        "participation",
+        [
+            {
+                "nflverse_game_id": "2026_01_OAK_KC",
+                "play_id": i,
+                "possession_team": "KC",
+                "offense_formation": "SHOTGUN",
+                "offense_personnel": "1 RB, 1 TE, 3 WR",
+                "defenders_in_box": 6,
+                "number_of_pass_rushers": 4,
+                "was_pressure": False,
+                "offense_players": "P1;P2;P3;Q1;Q2;Q3;Q4;Q5",
+            }
+            for i in range(1, 11)
+        ],
+        season=2026,
+    )
+    write_parquet(
+        root,
+        "advstats_rush",
+        [
+            {
+                "season": 2026,
+                "week": 1,
+                "game_id": "2026_01_OAK_KC",
+                "pfr_player_id": "PFR2",
+                "team": "LV",
+                "opponent": "KC",
+                "carries": 5,
+                "rushing_yards_before_contact": 10,
+                "rushing_yards_before_contact_avg": 2.0,
+                "rushing_yards_after_contact": 15,
+                "rushing_yards_after_contact_avg": 3.0,
+                "rushing_broken_tackles": 1,
+                "receiving_broken_tackles": 0,
+                "game_type": "REG",
+            }
+        ],
+        season=2026,
+    )
+    write_parquet(
+        root,
+        "advstats_rec",
+        [
+            {
+                "season": 2026,
+                "week": 1,
+                "game_id": "2026_01_OAK_KC",
+                "pfr_player_id": "PFR2",
+                "team": "LV",
+                "opponent": "KC",
+                "rushing_broken_tackles": 0,
+                "receiving_broken_tackles": 1,
+                "passing_drops": 0,
+                "passing_drop_pct": 0.0,
+                "receiving_drop": 0,
+                "receiving_drop_pct": 0.0,
+                "receiving_int": 0,
+                "receiving_rat": 100.0,
+                "game_type": "REG",
+                "pfr_player_name": "W",
+            }
+        ],
+        season=2026,
+    )
+    write_parquet(
+        root,
+        "advstats_pass",
+        [
+            {
+                "season": 2026,
+                "week": 1,
+                "game_id": "2026_01_OAK_KC",
+                "pfr_player_id": "PFR1",
+                "team": "KC",
+                "opponent": "LV",
+                "passing_drops": 0,
+                "passing_drop_pct": 0.0,
+                "receiving_drop": 0,
+                "receiving_drop_pct": 0.0,
+                "passing_bad_throws": 2,
+                "passing_bad_throw_pct": 0.1,
+                "times_sacked": 1,
+                "times_blitzed": 3,
+                "times_hurried": 2,
+                "times_hit": 1,
+                "times_pressured": 4,
+                "times_pressured_pct": 0.15,
+                "game_type": "REG",
+                "pfr_player_name": "P",
+            }
+        ],
+        season=2026,
+    )
+    write_parquet(
+        root,
+        "ftn_charting",
+        [
+            {
+                "nflverse_game_id": "2026_01_OAK_KC",
+                "nflverse_play_id": 1,
+                "season": 2026,
+                "week": 1,
+                "qb_location": "S",
+                "n_offense_backfield": 1,
+                "n_defense_box": 6,
+                "n_blitzers": 0,
+                "n_pass_rushers": 4,
+                "is_no_huddle": False,
+                "is_motion": True,
+                "is_play_action": False,
+                "is_screen_pass": False,
+                "is_rpo": False,
+                "is_qb_out_of_pocket": False,
+                "is_catchable_ball": True,
+                "is_contested_ball": False,
+                "is_created_reception": False,
+                "is_drop": False,
+            }
+        ],
+        season=2026,
+    )
+    for area, extra in (
+        (
+            "ngs_receiving",
+            {
+                "avg_cushion": 5.0,
+                "avg_separation": 3.0,
+                "avg_intended_air_yards": 9.0,
+                "percent_share_of_intended_air_yards": 20.0,
+                "catch_percentage": 70.0,
+                "avg_yac": 4.0,
+                "avg_expected_yac": 3.5,
+                "avg_yac_above_expectation": 0.5,
+            },
+        ),
+        (
+            "ngs_rushing",
+            {
+                "efficiency": 3.0,
+                "percent_attempts_gte_eight_defenders": 10.0,
+                "avg_time_to_los": 2.8,
+                "expected_rush_yards": 20.0,
+                "rush_yards_over_expected": 5.0,
+                "rush_yards_over_expected_per_att": 1.0,
+                "rush_pct_over_expected": 5.0,
+            },
+        ),
+        (
+            "ngs_passing",
+            {
+                "avg_time_to_throw": 2.7,
+                "avg_completed_air_yards": 6.0,
+                "avg_intended_air_yards": 8.0,
+                "aggressiveness": 15.0,
+                "avg_air_yards_to_sticks": -1.0,
+                "expected_completion_percentage": 64.0,
+                "completion_percentage_above_expectation": 2.0,
+            },
+        ),
+    ):
+        write_parquet(
+            root,
+            area,
+            [
+                {
+                    "season": 2026,
+                    "season_type": "REG",
+                    "week": 1,
+                    "player_gsis_id": "P2",
+                    "player_display_name": "W",
+                    "player_position": "WR",
+                    "team_abbr": "LV",
+                    **extra,
+                }
+            ],
+        )
+
+
 def build_raw_lake(root: Path, *, stats: list[dict] | None = None) -> None:
     write_parquet(
         root,
@@ -241,6 +466,7 @@ def build_raw_lake(root: Path, *, stats: list[dict] | None = None) -> None:
             }
         ],
     )
+    write_advanced_sources(root)
     write_parquet(
         root,
         "injuries",
@@ -258,12 +484,6 @@ def build_raw_lake(root: Path, *, stats: list[dict] | None = None) -> None:
     )
 
 
-# The fixture lake below carries the core datasets only, so the models that read play-by-play,
-# participation, advanced stats or charting are excluded here. Those are covered by the real
-# `dbt build` against the full lake; these tests are about the cleaning and ranking logic.
-FIXTURELESS = "stg_pbp_plays+ stg_participation+ stg_advstats+ stg_ftn_charting+ stg_ngs+"
-
-
 def run_dbt(tmp_path: Path, *args: str) -> subprocess.CompletedProcess:
     env = {
         **os.environ,
@@ -272,8 +492,6 @@ def run_dbt(tmp_path: Path, *args: str) -> subprocess.CompletedProcess:
         "DBT_TARGET_PATH": str(tmp_path / "target"),
         "DBT_LOG_PATH": str(tmp_path / "logs"),
     }
-    if args and args[0] in {"build", "run"}:
-        args = (*args, "--exclude", FIXTURELESS)
     command = [
         sys.executable,
         "-c",
@@ -383,6 +601,7 @@ def test_impossible_stats_fail_the_data_quality_tests(tmp_path):
 
 def build_ranking_lake(root: Path, week2_epa: dict[str, float]) -> None:
     """Three quarterbacks over two weeks. Week 1 EPA is fixed; week 2 EPA is a parameter."""
+    write_advanced_sources(root)
     week1_epa = {"Q1": 10.0, "Q2": 5.0, "Q3": 0.0}
     names = {"Q1": "Quinn One", "Q2": "Quinn Two", "Q3": "Quinn Three", "Q4": "Quinn Four"}
     games = []

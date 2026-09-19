@@ -9,5 +9,6 @@
     'receptions', 'receiving_yards', 'receiving_tds', 'target_share_avg',
     'air_yards_share_avg', 'wopr_avg',
     'fg_pct', 'fg_pct_40_plus', 'pat_pct', 'fg_made', 'fg_made_50_plus', 'kicker_points',
+    'avg_separation', 'yac_over_expected', 'rush_yards_over_expected_per_att',
 ]) }}
 {% endmacro %}

@@ -55,7 +55,13 @@ with metrics as (
         air_yards_share_sum / nullif(games, 0) as air_yards_share_avg,
         wopr_sum / nullif(games, 0) as wopr_avg,
 
-        -- kicker
+        -- Next Gen Stats (tracking): skill separated from opportunity. Null until a player has
+    -- appeared in an NGS week, which is about 90-96% of ranked players.
+    separation_x_targets / nullif(targets_with_separation, 0) as avg_separation,
+    yac_oe_x_receptions / nullif(receptions_with_yac_oe, 0) as yac_over_expected,
+    ryoe_x_carries / nullif(carries_with_ryoe, 0) as rush_yards_over_expected_per_att,
+
+    -- kicker
         fg_made::double / nullif(fg_att, 0) as fg_pct,
         (fg_made_40_49 + fg_made_50_59 + fg_made_60_plus)::double
             / nullif(

@@ -8,12 +8,17 @@ with ranked_positions as (
 ),
 
 stat_lines as (
-    select fct.*, points.fantasy_points_scored
+    select fct.*, points.fantasy_points_scored,
+        adv.avg_separation, adv.avg_yac_above_expectation, adv.rush_yards_over_expected_per_att
     from {{ ref('fct_player_week') }} as fct
     inner join {{ ref('int_weekly_fantasy_points') }} as points
         on fct.player_id = points.player_id
         and fct.season = points.season
         and fct.week = points.week
+    left join {{ ref('fct_player_week_advanced') }} as adv
+        on fct.player_id = adv.player_id
+        and fct.season = adv.season
+        and fct.week = adv.week
     where fct.season_type = 'REG'
         and fct.position_group in (select position_group from ranked_positions)
 ),
@@ -85,6 +90,20 @@ select
     sum(coalesce(stat_lines.fg_missed_60_, 0)) over w as fg_missed_60_plus,
     sum(coalesce(stat_lines.pat_att, 0)) over w as pat_att,
     sum(coalesce(stat_lines.pat_made, 0)) over w as pat_made,
+
+    -- Next Gen Stats are weekly averages, so accumulate each one weighted by the volume it rests
+    -- on and divide by that volume later. Weeks with no NGS entry simply contribute nothing.
+    sum(coalesce(stat_lines.avg_separation * stat_lines.targets, 0)) over w as separation_x_targets,
+    sum(case when stat_lines.avg_separation is not null
+        then coalesce(stat_lines.targets, 0) else 0 end) over w as targets_with_separation,
+    sum(coalesce(stat_lines.avg_yac_above_expectation * stat_lines.receptions, 0)) over w
+        as yac_oe_x_receptions,
+    sum(case when stat_lines.avg_yac_above_expectation is not null
+        then coalesce(stat_lines.receptions, 0) else 0 end) over w as receptions_with_yac_oe,
+    sum(coalesce(stat_lines.rush_yards_over_expected_per_att * stat_lines.carries, 0)) over w
+        as ryoe_x_carries,
+    sum(case when stat_lines.rush_yards_over_expected_per_att is not null
+        then coalesce(stat_lines.carries, 0) else 0 end) over w as carries_with_ryoe,
 
     sum(coalesce(stat_lines.fantasy_points_scored, 0)) over w as ppr_points
 from spine

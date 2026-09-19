@@ -42,3 +42,8 @@ K,pat_pct,efficiency,higher,1
 K,fg_made,production,higher,1
 K,fg_made_50_plus,production,higher,1
 K,kicker_points,production,higher,1
+RB,rush_yards_over_expected_per_att,efficiency,higher,1
+WR,avg_separation,efficiency,higher,1
+WR,yac_over_expected,efficiency,higher,1
+TE,avg_separation,efficiency,higher,1
+TE,yac_over_expected,efficiency,higher,1
