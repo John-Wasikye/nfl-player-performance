@@ -7,6 +7,8 @@ honest, and nothing is allowed to calibrate on data it trained on.
 
 from __future__ import annotations
 
+import copy
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -399,3 +401,142 @@ def test_a_more_accurate_challenger_with_dishonest_ranges_is_rejected():
 
     assert decision["promote"] is False
     assert "dishonest" in decision["reason"]
+
+
+# ---------------------------------------------------------------- the weekly lock
+
+
+@pytest.fixture
+def weekly(tmp_path):
+    """A projected week for 2024 week 18, plus a scratch directory to lock it into."""
+    from nfl_pipeline.predict.weekly import predict_week
+
+    features = walkable_frame()
+    # The week being projected has no outcome yet, which is the situation that matters.
+    future = (features.season == 2024) & (features.week == 18)
+    features.loc[future, "actual_ppr"] = np.nan
+    return predict_week(features, season=2024, week=18), features, tmp_path
+
+
+def test_a_week_that_has_not_been_played_can_still_be_projected(weekly):
+    """The whole point of a projection is that the answer does not exist yet."""
+    predictions, _, _ = weekly
+
+    assert len(predictions.rows) > 0
+    assert predictions.status == "preliminary"
+
+
+def test_locking_a_week_records_when_it_became_final(weekly):
+    from nfl_pipeline.predict.weekly import lock_week
+
+    predictions, _, root = weekly
+
+    locked = lock_week(predictions, root)
+
+    assert locked.status == "locked"
+    assert locked.locked_at is not None
+
+
+def test_relocking_the_same_numbers_is_allowed_because_runs_get_retried(weekly):
+    from nfl_pipeline.predict.weekly import lock_week
+
+    predictions, _, root = weekly
+    first = lock_week(predictions, root)
+
+    again = lock_week(predictions, root)
+
+    assert again.locked_at == first.locked_at
+
+
+def test_a_locked_week_cannot_be_quietly_rewritten(weekly):
+    """This is the guarantee the whole report card rests on.
+
+    If a later run could overwrite last week's projections with better ones, the published accuracy
+    would measure hindsight rather than prediction.
+    """
+    from nfl_pipeline.predict.weekly import lock_week
+
+    predictions, _, root = weekly
+    lock_week(predictions, root)
+    improved = copy.deepcopy(predictions)
+    improved.rows["points"] = improved.rows["points"] + 1.0
+
+    with pytest.raises(ValueError, match="already locked"):
+        lock_week(improved, root)
+
+
+def test_locked_predictions_survive_a_round_trip_to_disk(weekly):
+    from nfl_pipeline.predict.weekly import load_locked, lock_week
+
+    predictions, _, root = weekly
+    locked = lock_week(predictions, root)
+
+    reloaded = load_locked(root, 2024, 18)
+
+    assert reloaded.locked_at == locked.locked_at
+    pd.testing.assert_series_equal(
+        reloaded.rows.points.round(6), locked.rows.points.round(6), check_dtype=False
+    )
+
+
+def test_grading_scores_the_locked_numbers_against_what_happened(weekly):
+    from nfl_pipeline.predict.weekly import grade_week, lock_week
+
+    predictions, features, root = weekly
+    locked = lock_week(predictions, root)
+    # The games are now played.
+    played = walkable_frame()
+
+    graded = grade_week(locked, played)
+
+    assert graded.player_games > 0
+    assert graded.mae > 0
+    assert set(graded.baseline_mae) == {"recent_average", "season_average", "last_ten"}
+
+
+def test_a_player_who_never_took_the_field_is_not_graded_as_a_miss(weekly):
+    """Missing a game is the availability model's business, not the points model's."""
+    from nfl_pipeline.predict.weekly import grade_week, lock_week
+
+    predictions, _, root = weekly
+    locked = lock_week(predictions, root)
+    played = walkable_frame()
+    absent = played.player_id.iloc[0]
+    played.loc[
+        (played.season == 2024) & (played.week == 18) & (played.player_id == absent), "actual_ppr"
+    ] = np.nan
+
+    graded = grade_week(locked, played)
+
+    assert graded.player_games == len(locked.rows) - 1
+
+
+def test_the_frozen_control_is_graded_on_the_same_rows(weekly):
+    """Without a fixed control line, 'the model is improving' cannot be checked."""
+    from nfl_pipeline.predict.weekly import grade_week, lock_week
+
+    predictions, _, root = weekly
+    locked = lock_week(predictions, root)
+    played = walkable_frame()
+    # A deliberately poor frozen model: everyone gets the league average.
+    frozen = pd.Series(8.0, index=locked.rows.player_id)
+
+    graded = grade_week(locked, played, frozen_points=frozen)
+
+    assert graded.frozen_model_mae is not None
+    assert graded.frozen_model_mae > graded.mae
+
+
+def test_players_ruled_out_are_left_out_of_the_published_week():
+    """A projection of zero reads as 'he will play badly', not 'he is not playing'."""
+    from nfl_pipeline.predict.weekly import predict_week
+
+    features = walkable_frame()
+    future = (features.season == 2024) & (features.week == 18)
+    features.loc[future, "actual_ppr"] = np.nan
+    benched = features.player_id.iloc[0]
+    features.loc[future & (features.player_id == benched), "injury_status"] = "Out"
+
+    predictions = predict_week(features, season=2024, week=18)
+
+    assert benched not in set(predictions.rows.player_id)

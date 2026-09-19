@@ -83,6 +83,16 @@ class PredictionModel:
         """Rows worth learning from: enough history, and the player actually played."""
         return frame[(frame.prior_games >= MIN_PRIOR_GAMES) & frame.actual_ppr.notna()]
 
+    @staticmethod
+    def predictable(frame: pd.DataFrame) -> pd.DataFrame:
+        """Rows worth projecting: enough history, and no requirement to have played yet.
+
+        Separate from `trainable` because the whole point of a live projection is that the outcome
+        does not exist. Using `trainable` here would silently return an empty frame for any week
+        that has not been played, which is every week we actually care about.
+        """
+        return frame[frame.prior_games >= MIN_PRIOR_GAMES]
+
     def fit(
         self, history: pd.DataFrame, calibration: pd.DataFrame | None = None
     ) -> PredictionModel:

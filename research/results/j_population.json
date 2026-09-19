@@ -1,0 +1,162 @@
+{
+  "usage": {
+    "overall": {
+      "weeks": 36,
+      "player_games": 12411,
+      "mae": 4.4577,
+      "rmse": 6.0215,
+      "interval_coverage": 0.7974,
+      "spearman": 0.6683,
+      "baselines": {
+        "recent_average": 4.5917,
+        "season_average": 4.5199,
+        "last_ten": 4.5101
+      },
+      "best_baseline": "last_ten",
+      "improvement_over_best_baseline": 0.0524
+    },
+    "by_recent_scoring_tier": [
+      {
+        "tier": "0-2",
+        "player_games": 2131,
+        "mean_actual": 1.891,
+        "model_mae": 2.222,
+        "baseline_mae": 1.931,
+        "margin": -0.291
+      },
+      {
+        "tier": "2-4",
+        "player_games": 1814,
+        "mean_actual": 3.76,
+        "model_mae": 3.349,
+        "baseline_mae": 3.256,
+        "margin": -0.093
+      },
+      {
+        "tier": "4-6",
+        "player_games": 1593,
+        "mean_actual": 5.439,
+        "model_mae": 3.986,
+        "baseline_mae": 4.052,
+        "margin": 0.067
+      },
+      {
+        "tier": "6-9",
+        "player_games": 2196,
+        "mean_actual": 7.865,
+        "model_mae": 4.691,
+        "baseline_mae": 4.793,
+        "margin": 0.102
+      },
+      {
+        "tier": "9-13",
+        "player_games": 2161,
+        "mean_actual": 10.357,
+        "model_mae": 5.5,
+        "baseline_mae": 5.678,
+        "margin": 0.178
+      },
+      {
+        "tier": "13+",
+        "player_games": 2494,
+        "mean_actual": 15.147,
+        "model_mae": 6.39,
+        "baseline_mae": 6.681,
+        "margin": 0.292
+      }
+    ],
+    "by_position": [
+      {
+        "position_group": "K",
+        "player_games": 1041,
+        "model_mae": 3.865,
+        "baseline_mae": 4.01,
+        "margin": 0.145
+      },
+      {
+        "position_group": "QB",
+        "player_games": 1255,
+        "model_mae": 6.361,
+        "baseline_mae": 6.681,
+        "margin": 0.32
+      },
+      {
+        "position_group": "RB",
+        "player_games": 3071,
+        "model_mae": 4.353,
+        "baseline_mae": 4.418,
+        "margin": 0.065
+      },
+      {
+        "position_group": "TE",
+        "player_games": 2374,
+        "model_mae": 3.707,
+        "baseline_mae": 3.687,
+        "margin": -0.02
+      },
+      {
+        "position_group": "WR",
+        "player_games": 4670,
+        "model_mae": 4.529,
+        "baseline_mae": 4.517,
+        "margin": -0.011
+      }
+    ]
+  },
+  "thresholds": {
+    "ppr_mean5_at_least_0": {
+      "player_games": 12388,
+      "mae": 4.4633,
+      "best_baseline_mae": 4.5153,
+      "margin": 0.0519,
+      "coverage": 0.7969,
+      "spearman": 0.6675,
+      "clears_the_0_15_bar": false
+    },
+    "ppr_mean5_at_least_2": {
+      "player_games": 10278,
+      "mae": 4.9314,
+      "best_baseline_mae": 5.047,
+      "margin": 0.1155,
+      "coverage": 0.7968,
+      "spearman": 0.5908,
+      "clears_the_0_15_bar": false
+    },
+    "ppr_mean5_at_least_4": {
+      "player_games": 8464,
+      "mae": 5.2778,
+      "best_baseline_mae": 5.4363,
+      "margin": 0.1585,
+      "coverage": 0.7978,
+      "spearman": 0.5312,
+      "clears_the_0_15_bar": true
+    },
+    "ppr_mean5_at_least_6": {
+      "player_games": 6879,
+      "mae": 5.5864,
+      "best_baseline_mae": 5.7524,
+      "margin": 0.1659,
+      "coverage": 0.7994,
+      "spearman": 0.4709,
+      "clears_the_0_15_bar": true
+    },
+    "ppr_mean5_at_least_8": {
+      "player_games": 5421,
+      "mae": 5.8499,
+      "best_baseline_mae": 6.0182,
+      "margin": 0.1683,
+      "coverage": 0.801,
+      "spearman": 0.4399,
+      "clears_the_0_15_bar": true
+    },
+    "ppr_mean5_at_least_10": {
+      "player_games": 4037,
+      "mae": 6.1355,
+      "best_baseline_mae": 6.3459,
+      "margin": 0.2104,
+      "coverage": 0.7979,
+      "spearman": 0.3992,
+      "clears_the_0_15_bar": true
+    }
+  }
+}

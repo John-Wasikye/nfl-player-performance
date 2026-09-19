@@ -14,13 +14,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from common import ROOT, save
 
 from nfl_pipeline.predict.backtest import walk_forward
 from nfl_pipeline.predict.features import load_features
-from nfl_pipeline.predict.models import PredictionModel, baseline_predictions
+from nfl_pipeline.predict.models import baseline_predictions
 
 THRESHOLDS = (0.0, 2.0, 4.0, 6.0, 8.0, 10.0)
 
