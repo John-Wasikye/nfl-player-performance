@@ -635,9 +635,7 @@ def test_impossible_stats_fail_the_data_quality_tests(tmp_path):
 def build_ranking_lake(root: Path, week2_epa: dict[str, float]) -> None:
     """Three quarterbacks over two weeks. Week 1 EPA is fixed; week 2 EPA is a parameter."""
     write_advanced_sources(root)
-    write_weekly_rosters(
-        root, [(f"Q{i}", "QB", "KC") for i in range(1, 6)], weeks=(1, 2)
-    )
+    write_weekly_rosters(root, [(f"Q{i}", "QB", "KC") for i in range(1, 6)], weeks=(1, 2))
     week1_epa = {"Q1": 10.0, "Q2": 5.0, "Q3": 0.0}
     names = {"Q1": "Quinn One", "Q2": "Quinn Two", "Q3": "Quinn Three", "Q4": "Quinn Four"}
     games = []

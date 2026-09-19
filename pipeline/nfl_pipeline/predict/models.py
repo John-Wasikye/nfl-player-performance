@@ -76,6 +76,10 @@ class PredictionModel:
 
     version: str = "v1"
     conformal_offset: float = 0.0
+    # Extra feature columns a candidate wants tried, on top of the standard set. Held per instance
+    # rather than appended to the module-level list, so a candidate under evaluation cannot leak
+    # into the champion or into anything else running in the same process.
+    extra_columns: tuple[str, ...] = ()
     _gbm: lgb.Booster | None = field(default=None, repr=False)
     _ridge: object | None = field(default=None, repr=False)
     _low: lgb.Booster | None = field(default=None, repr=False)
@@ -83,6 +87,10 @@ class PredictionModel:
     _medians: pd.Series | None = field(default=None, repr=False)
 
     # ---------------------------------------------------------------- fitting
+
+    def columns(self) -> list[str]:
+        """Everything this model trains on: the standard features plus any candidate extras."""
+        return [*model_columns(), *self.extra_columns]
 
     @staticmethod
     def trainable(frame: pd.DataFrame) -> pd.DataFrame:
@@ -124,7 +132,7 @@ class PredictionModel:
         if len(train) < MIN_TRAINING_ROWS:
             raise ValueError(f"need at least {MIN_TRAINING_ROWS} rows to fit, got {len(train)}")
 
-        columns = model_columns()
+        columns = self.columns()
         x = train[columns].astype(float)
         self._medians = x.median()
         x = x.fillna(self._medians)
@@ -190,7 +198,7 @@ class PredictionModel:
     # ---------------------------------------------------------------- predicting
 
     def _prepare(self, frame: pd.DataFrame) -> pd.DataFrame:
-        return frame[model_columns()].astype(float).fillna(self._medians)
+        return frame[self.columns()].astype(float).fillna(self._medians)
 
     def predict_points(self, frame: pd.DataFrame) -> np.ndarray:
         """The ensemble's point estimate, floored at zero."""

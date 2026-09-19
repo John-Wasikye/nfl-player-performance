@@ -35,6 +35,18 @@
       "promoted": true,
       "reason": "coverage returned to 0.797 from 0.778 while mean error stayed identical to four decimal places, which is the check that it moved only the ranges and not the projections. Ranges are 0.3 points wider, as they should have been all along",
       "metric": "mae"
+    },
+    {
+      "entry_id": "2026-09-19-form_versus_baseline",
+      "proposed_at": "2026-09-19T16:27:16+00:00",
+      "hypothesis": "The model sees recent form and season average as separate numbers but cannot easily express their ratio, because trees split on thresholds. Stating 'hot or cold relative to himself' directly should help more than either number alone.",
+      "change": "added feature(s) form_versus_baseline",
+      "champion_score": 4.4574,
+      "challenger_score": 4.4572,
+      "improvement": 0.0002,
+      "promoted": false,
+      "reason": "only 0.000 better, which is within the 0.05 noise margin",
+      "metric": "mae"
     }
   ]
 }

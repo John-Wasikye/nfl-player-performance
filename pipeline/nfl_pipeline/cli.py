@@ -1,8 +1,11 @@
 """Command line entry point.
 
-nfl-pipeline ingest    download nflverse files into raw storage
-nfl-pipeline publish   validate the rankings and write the published JSON
-nfl-pipeline run       ingest, then dbt build (models and tests), then publish
+nfl-pipeline ingest      download nflverse files into raw storage
+nfl-pipeline publish     validate the rankings and write the published JSON
+nfl-pipeline predict     project the coming week, grade the finished ones, publish both
+nfl-pipeline experiment  report where the model missed, or put one candidate through the gate
+nfl-pipeline backtest    score the rankings against what happened the following week
+nfl-pipeline run         ingest, then dbt build (models and tests), then publish
 """
 
 from __future__ import annotations
@@ -24,6 +27,12 @@ from nfl_pipeline.backtest import render_report, run_backtest
 from nfl_pipeline.config import Settings, build_storage
 from nfl_pipeline.datasets import DATASETS, resolve_files
 from nfl_pipeline.ingest import ingest
+from nfl_pipeline.predict.experiment import (
+    ExperimentError,
+    list_candidates,
+    run_candidate,
+    write_report,
+)
 from nfl_pipeline.predict.run import PredictionError, run_predictions
 from nfl_pipeline.publish import PublishError, publish
 from nfl_pipeline.season import current_season, parse_seasons
@@ -63,6 +72,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="write the projections to disk as final. Only do this before the first kickoff of "
         "the week: a locked week cannot be rewritten, which is what makes the Report card honest.",
+    )
+    experiment = commands.add_parser(
+        "experiment",
+        help="the weekly learning loop: report where the model missed, or test one candidate",
+    )
+    experiment.add_argument(
+        "--run",
+        metavar="NAME",
+        help="evaluate a registered candidate feature and record the verdict in the ledger",
+    )
+    experiment.add_argument("--list", action="store_true", help="list the registered candidates")
+    experiment.add_argument(
+        "--report",
+        default="docs/last-week.md",
+        help="where to write the failure report (default: docs/last-week.md)",
     )
     backtest = commands.add_parser(
         "backtest", help="score the rankings against what happened the following week"
@@ -166,6 +190,43 @@ def _run_predict(args: argparse.Namespace, settings: Settings, now: datetime) ->
     return 0
 
 
+def _run_experiment(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
+    if args.list:
+        for name, hypothesis in list_candidates():
+            print(f"{name}")
+            print(f"    {hypothesis}")
+            print()
+        return 0
+
+    try:
+        if args.run:
+            result = run_candidate(
+                Path(settings.warehouse_path), Path(settings.ledger_path), args.run, now
+            )
+            verdict = "PROMOTED" if result.promoted else "REJECTED"
+            print(f"{result.name}: {verdict} - {result.reason}")
+            print(
+                f"  champion {result.champion_mae:.4f}  challenger {result.challenger_mae:.4f}  "
+                f"coverage {result.challenger_coverage:.3f}"
+            )
+            print(f"  recorded as {result.entry_id}")
+            return 0
+
+        report = write_report(Path(settings.warehouse_path), Path(args.report))
+    except ExperimentError as error:
+        print(f"experiment failed: {error}", file=sys.stderr)
+        return 1
+
+    print(
+        f"wrote {report.path}: {report.season} week {report.week}, "
+        f"{report.player_games} player-games"
+    )
+    print(
+        f"  average error {report.mae:.3f} against {report.baseline_mae:.3f} for the best baseline"
+    )
+    return 0
+
+
 def _run_backtest(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
     try:
         summary = run_backtest(settings.warehouse_path, now=now)
@@ -203,6 +264,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_publish(settings, now)
     if args.command == "predict":
         return _run_predict(args, settings, now)
+    if args.command == "experiment":
+        return _run_experiment(args, settings, now)
     if args.command == "backtest":
         return _run_backtest(args, settings, now)
 

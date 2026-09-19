@@ -12,8 +12,15 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
 - Tests: `.venv\Scripts\python -m pytest`
 - Lint and format: `.venv\Scripts\python -m ruff check .` and `.venv\Scripts\python -m ruff format .`
 - Whole pipeline locally (ingest, dbt build with tests, publish): `.venv\Scripts\nfl-pipeline run`
-- Backtest (needs a built warehouse; writes docs/backtest.md): `.venv\Scripts
-fl-pipeline backtest`
+- Backtest (needs a built warehouse; writes docs/backtest.md): `.venv\Scripts\nfl-pipeline backtest`
+- Weekly projections (predict, grade, publish): `.venv\Scripts\nfl-pipeline predict`.
+  Add `--lock` ONLY before the week's first kickoff: a locked week cannot be rewritten, and that is
+  what makes the Report card honest.
+- The learning loop: `.venv\Scripts\nfl-pipeline experiment` writes `docs/last-week.md` (where the
+  model missed, and which datasets are still unused). Read it, add one candidate to
+  `pipeline/nfl_pipeline/predict/proposals.py`, then `nfl-pipeline experiment --run <name>`.
+  The promotion gate decides and the verdict is appended to the ledger either way. Do not delete a
+  rejected candidate: the code is the record of what was tried.
 - Just the ingest: `.venv\Scripts\nfl-pipeline ingest --datasets schedules`
 - dbt (from the repo root, with `.venv\Scripts` on PATH): `dbt build --project-dir dbt --profiles-dir dbt`.
   After changing a seed's columns, run `dbt seed --full-refresh` or the old columns stay.
