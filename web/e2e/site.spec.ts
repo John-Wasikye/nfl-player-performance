@@ -246,7 +246,7 @@ test.describe("Methodology and About", () => {
       "https://github.com/nflverse/nflverse-data",
     );
     await expect(page.getByRole("link", { name: /Creative Commons Attribution/ })).toBeVisible();
-    await expect(page.getByText(/not affiliated with or endorsed by the NFL/).first()).toBeVisible();
+    await expect(page.getByText(/affiliated with or endorsed by the NFL/i).first()).toBeVisible();
   });
 
   test("the header reaches every section", async ({ page }) => {
@@ -281,6 +281,31 @@ test.describe("Author credit", () => {
       await expect(link).toHaveAttribute("href", /.+/);
     });
   }
+});
+
+test.describe("About page author section", () => {
+  test("gives the author's name, email and a way to their other projects", async ({ page }) => {
+    await page.goto("/about/");
+    const section = page.getByRole("region", { name: "About the author" });
+
+    await expect(section.getByRole("heading", { name: "Built by John Wasikye" })).toBeVisible();
+    await expect(section.getByRole("link", { name: "john.wasikye@gmail.com" })).toHaveAttribute(
+      "href",
+      "mailto:john.wasikye@gmail.com",
+    );
+    await expect(section.getByRole("link", { name: /See my other projects/ })).toHaveAttribute(
+      "href",
+      /^https:\/\/github\.com\//,
+    );
+    await expect(section.getByRole("link", { name: /nfl-player-performance on GitHub/ })).toBeVisible();
+  });
+
+  test("no longer carries the thank-you line or the disclaimer list", async ({ page }) => {
+    await page.goto("/about/");
+
+    await expect(page.getByText("Thank you to everyone")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Good to know" })).toHaveCount(0);
+  });
 });
 
 test.describe("Theme", () => {

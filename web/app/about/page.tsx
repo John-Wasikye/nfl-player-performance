@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Card, PageHeader } from "@/components/ui";
+import { AUTHOR, linkProps, otherProjectsUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "About & data",
@@ -24,6 +25,47 @@ export default function AboutPage() {
         subtitle="An independent project that turns public NFL data into position rankings and weekly projections."
       />
 
+      <section aria-label="About the author">
+        <Card className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start">
+          <span
+            aria-hidden="true"
+            className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-lg font-bold text-accent-fg"
+          >
+            {AUTHOR.initials}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight">Built by {AUTHOR.name}</h2>
+            <p className="mt-1 text-sm text-muted">
+              I designed and built the site, the data pipeline and the prediction engine myself as a
+              portfolio project. The code is public.
+            </p>
+            <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[8rem_1fr]">
+              <dt className="text-muted">Email</dt>
+              <dd>
+                <a
+                  className="text-accent underline underline-offset-2"
+                  href={`mailto:${AUTHOR.email}`}
+                >
+                  {AUTHOR.email}
+                </a>
+              </dd>
+              <dt className="text-muted">Other projects</dt>
+              <dd>
+                <a className="text-accent underline underline-offset-2" {...linkProps(otherProjectsUrl())}>
+                  See my other projects
+                </a>
+              </dd>
+              <dt className="text-muted">Source code</dt>
+              <dd>
+                <a className="text-accent underline underline-offset-2" {...linkProps(AUTHOR.repo)}>
+                  nfl-player-performance on GitHub
+                </a>
+              </dd>
+            </dl>
+          </div>
+        </Card>
+      </section>
+
       <section aria-label="Data sources" className="grid gap-4 md:grid-cols-2">
         <Card className="p-6">
           <h2 className="font-semibold">Where the data comes from</h2>
@@ -36,7 +78,7 @@ export default function AboutPage() {
             <a className="text-accent underline underline-offset-2" href="https://creativecommons.org/licenses/by/4.0/">
               Creative Commons Attribution 4.0
             </a>{" "}
-            license. Thank you to everyone who maintains it.
+            license.
           </p>
         </Card>
         <Card className="p-6">
@@ -63,15 +105,6 @@ export default function AboutPage() {
         </Card>
       </section>
 
-      <section aria-label="Disclaimers">
-        <h2 className="mb-3 text-lg font-semibold tracking-tight">Good to know</h2>
-        <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
-          <li>This site is independent and is not affiliated with or endorsed by the NFL or any team.</li>
-          <li>Player avatars are initials on a team color. There are no photos or logos.</li>
-          <li>Rankings are statistical summaries, not betting or financial advice.</li>
-          <li>There are no accounts, no ads, and no personal data collected.</li>
-        </ul>
-      </section>
     </div>
   );
 }

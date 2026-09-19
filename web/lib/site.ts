@@ -8,9 +8,17 @@ export const SITE = {
 export const AUTHOR = {
   name: "John Wasikye",
   initials: "JW",
-  // TODO: replace "#" with the address of the portfolio site that lists your other projects.
-  portfolioUrl: "#",
+  email: "john.wasikye@gmail.com",
+  github: "https://github.com/John-Wasikye",
+  repo: "https://github.com/John-Wasikye/nfl-player-performance",
+  // Set this to the portfolio site's address once it is live.
+  portfolioUrl: "",
 };
+
+/** Where "my other projects" points: the portfolio if it is set, otherwise GitHub. */
+export function otherProjectsUrl(): string {
+  return /^https?:\/\//.test(AUTHOR.portfolioUrl) ? AUTHOR.portfolioUrl : AUTHOR.github;
+}
 
 /** Links to other sites should open safely in a new tab; a "#" placeholder should not. */
 export function linkProps(url: string) {
