@@ -44,9 +44,11 @@ def make_frame(rows: int = 1200, seed: int = 0, seasons=(2021, 2022, 2023)) -> p
         )
         for column in FEATURE_COLUMNS:
             frame[column] = rng.normal(0, 1, per_season)
-        # These are in FEATURE_COLUMNS, so they must be set after the noise loop above or they
-        # get overwritten. prior_games decides what is trainable, so it matters.
+        # `prior_games` and `week` are both in FEATURE_COLUMNS, so they must be restored after the
+        # noise loop above or they get overwritten. prior_games decides what is trainable and week
+        # decides which rows a walk-forward run can see, so silently losing them hides real bugs.
         frame["prior_games"] = rng.integers(4, 40, per_season)
+        frame["week"] = [(i % 17) + 1 for i in range(per_season)]
         # Make recent form genuinely informative, so a model can beat guessing.
         frame["ppr_mean5"] = form
         frame["ppr_mean3"] = form + rng.normal(0, 1, per_season)
@@ -260,3 +262,140 @@ def test_the_model_only_ever_sees_feature_columns():
     assert "actual_ppr" not in columns
     assert "player_id" not in columns
     assert set(columns) == set(FEATURE_COLUMNS) | {"position_code"}
+
+
+# ---------------------------------------------------------------- the harness and the gate
+
+
+def walkable_frame(seasons=(2021, 2022, 2023, 2024), per_week: int = 60) -> pd.DataFrame:
+    """Several seasons of weekly data, big enough for the harness to train and test on."""
+    rng = np.random.default_rng(11)
+    rows = []
+    for season in seasons:
+        for week in range(1, 19):
+            form = rng.gamma(4.0, 2.5, per_week)
+            block = pd.DataFrame(
+                {
+                    "player_id": [f"W{i:03d}" for i in range(per_week)],
+                    "season": season,
+                    "week": week,
+                    "position_group": [POSITIONS[i % len(POSITIONS)] for i in range(per_week)],
+                    "position_code": [i % len(POSITIONS) for i in range(per_week)],
+                    "injury_status": None,
+                    "actual_ppr": np.maximum(form + rng.normal(0, 5, per_week), 0),
+                }
+            )
+            for column in FEATURE_COLUMNS:
+                block[column] = rng.normal(0, 1, per_week)
+            block["prior_games"] = 10
+            block["week"] = week  # restored: `week` is itself a feature column
+            block["ppr_mean5"] = form
+            block["ppr_mean3"] = form + rng.normal(0, 1, per_week)
+            block["ppr_mean10"] = form + rng.normal(0, 1, per_week)
+            block["ppr_season_avg"] = form + rng.normal(0, 1, per_week)
+            rows.append(block)
+    return pd.concat(rows, ignore_index=True)
+
+
+@pytest.fixture(scope="module")
+def backtest():
+    from nfl_pipeline.predict.backtest import walk_forward
+
+    return walk_forward(walkable_frame(), test_seasons=(2024,), min_history_rows=1000)
+
+
+def test_the_harness_grades_every_week_it_can(backtest):
+    assert len(backtest.weeks) >= 15
+    assert backtest.player_games > 800
+    assert all(w.players > 0 for w in backtest.weeks)
+
+
+def test_it_reports_accuracy_alongside_the_baselines_it_must_beat(backtest):
+    summary = backtest.summary()
+
+    assert summary["mae"] > 0
+    assert set(summary["baselines"]) == {"recent_average", "season_average", "last_ten"}
+    assert summary["best_baseline"] in summary["baselines"]
+    # The headline number is the margin over the best baseline, not raw accuracy.
+    assert "improvement_over_best_baseline" in summary
+
+
+def test_every_week_trains_only_on_earlier_weeks():
+    """The harness must never hand a week its own data. Later weeks see strictly more history."""
+    from nfl_pipeline.predict.backtest import walk_forward
+
+    seen: list[int] = []
+
+    class Recording(PredictionModel):
+        def fit(self, history, calibration=None):
+            seen.append(len(history))
+            if len(history):
+                assert history.season.max() <= 2024
+            return super().fit(history, calibration=calibration)
+
+    result = walk_forward(
+        walkable_frame(), test_seasons=(2024,), model_factory=Recording, min_history_rows=1000
+    )
+
+    assert len(seen) == len(result.weeks)
+    assert seen == sorted(seen), "training history should only ever grow"
+
+
+def test_intervals_stay_honest_across_the_whole_backtest(backtest):
+    # A nominal 80% range that covers far more or less than that is not worth publishing.
+    assert 0.7 <= backtest.coverage <= 0.9
+
+
+# --- the promotion gate
+
+
+class FakeResult:
+    """Stands in for a backtest result, so the gate can be tested on exact numbers."""
+
+    def __init__(self, mae: float, coverage: float = 0.8) -> None:
+        self.mae = mae
+        self.coverage = coverage
+
+
+def test_a_clearly_better_challenger_is_promoted():
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    decision = promotion_decision(FakeResult(5.0), FakeResult(4.5))
+
+    assert decision["promote"] is True
+    assert "beats the champion" in decision["reason"]
+
+
+def test_a_worse_challenger_is_rejected():
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    decision = promotion_decision(FakeResult(4.5), FakeResult(5.0))
+
+    assert decision["promote"] is False
+    assert "worse than the champion" in decision["reason"]
+
+
+def test_a_barely_better_challenger_is_rejected_as_noise():
+    """The rule that stops the model drifting on random weekly wobble."""
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    decision = promotion_decision(FakeResult(4.50), FakeResult(4.48))
+
+    assert decision["promote"] is False
+    assert "noise margin" in decision["reason"]
+
+
+def test_a_tie_keeps_the_incumbent():
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    assert promotion_decision(FakeResult(4.5), FakeResult(4.5))["promote"] is False
+
+
+def test_a_more_accurate_challenger_with_dishonest_ranges_is_rejected():
+    """Accuracy is not enough: a model whose 80% range covers 40% is not shippable."""
+    from nfl_pipeline.predict.backtest import promotion_decision
+
+    decision = promotion_decision(FakeResult(5.0), FakeResult(4.0, coverage=0.40))
+
+    assert decision["promote"] is False
+    assert "dishonest" in decision["reason"]
