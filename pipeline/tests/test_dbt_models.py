@@ -853,3 +853,148 @@ def test_a_team_that_has_not_played_this_week_is_not_penalized(tmp_path):
     )
     # 20 attempts against a one-game minimum of 14: qualified. (Two games would need 28.)
     assert rows == [(True, True)]
+
+
+# --- The feature store's leakage guarantee -------------------------------------------------------
+
+
+def build_leakage_lake(root: Path, weekly_points: dict[int, float]) -> None:
+    """One quarterback across three weeks, scoring whatever `weekly_points` says."""
+    write_advanced_sources(root)
+    games = [
+        {
+            "game_id": f"2026_0{week}_AAA_BBB", "season": 2026, "game_type": "REG", "week": week,
+            "gameday": f"2026-09-{5 + week * 7:02d}", "weekday": "Sunday", "gametime": "13:00",
+            "home_team": "KC", "away_team": "LV", "home_score": 24, "away_score": 17,
+            "overtime": 0, "location": "Home", "home_rest": 7, "away_rest": 7,
+            "spread_line": -3.0, "total_line": 45.0, "home_moneyline": -150,
+            "away_moneyline": 130, "div_game": 0, "roof": "outdoors", "surface": "grass",
+            "temp": 70, "wind": 5, "stadium_id": "X", "stadium": "X", "home_qb_id": "L1",
+            "away_qb_id": "L1", "home_coach": "A", "away_coach": "B",
+        }
+        for week in weekly_points
+    ]  # fmt: skip
+    write_parquet(root, "schedules", games)
+    write_parquet(
+        root,
+        "players",
+        [
+            {
+                "gsis_id": "L1", "display_name": "Lee Passer", "first_name": "Lee",
+                "last_name": "Passer", "birth_date": "1995-01-01", "position": "QB",
+                "height": 75, "weight": 210, "college_name": "State", "rookie_season": 2018,
+                "last_season": 2026, "latest_team": "KC", "status": "ACT",
+                "years_of_experience": 8, "draft_year": 2018, "draft_round": 1,
+                "draft_pick": 5, "pfr_id": "PFRL1", "espn_id": "1",
+            }
+        ],
+    )  # fmt: skip
+    write_parquet(
+        root,
+        "stats_player",
+        [
+            stat_line(
+                "L1",
+                "L.Passer",
+                "QB",
+                "KC",
+                week=week,
+                attempts=30,
+                completions=20,
+                passing_yards=250,
+                fantasy_points=points,
+                fantasy_points_ppr=points,
+            )
+            for week, points in weekly_points.items()
+        ],  # fmt: skip
+        season=2026,
+    )
+    write_parquet(
+        root,
+        "snap_counts",
+        [
+            {
+                "game_id": "2026_01_AAA_BBB",
+                "season": 2026,
+                "week": 1,
+                "game_type": "REG",
+                "pfr_player_id": "PFRL1",
+                "player": "Lee Passer",
+                "position": "QB",
+                "team": "KC",
+                "offense_snaps": 60.0,
+                "offense_pct": 1.0,
+                "defense_snaps": 0.0,
+                "defense_pct": 0.0,
+                "st_snaps": 0.0,
+                "st_pct": 0.0,
+            }
+        ],  # fmt: skip
+    )
+    write_parquet(
+        root,
+        "injuries",
+        [
+            {
+                "gsis_id": "L1",
+                "season": 2026,
+                "week": 1,
+                "team": "KC",
+                "report_status": "Questionable",
+                "report_primary_injury": "Knee",
+                "practice_status": "Limited Participation in Practice",
+            }
+        ],  # fmt: skip
+    )
+
+
+def feature_rows(tmp_path: Path, week: int) -> list:
+    return query(
+        tmp_path,
+        "select ppr_mean3, ppr_mean5, ppr_mean10, ppr_season_avg, prior_games, targets_mean5 "
+        f"from feat_player_week where player_id = 'L1' and week = {week}",
+    )
+
+
+def build_features(tmp_path: Path, weekly_points: dict[int, float]) -> None:
+    build_leakage_lake(tmp_path / "raw", weekly_points)
+    for args in (["seed"], ["run", "--select", "+feat_player_week"]):
+        result = run_dbt(tmp_path, *args)
+        assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-2000:]
+
+
+def test_changing_a_future_week_cannot_change_earlier_features(tmp_path_factory):
+    """The leakage guarantee every published accuracy figure rests on.
+
+    Two identical pasts with wildly different futures must produce identical features for the
+    earlier weeks. If any window reached forward, these would differ.
+    """
+    normal = tmp_path_factory.mktemp("future_normal")
+    build_features(normal, {1: 10.0, 2: 20.0, 3: 30.0})
+    altered = tmp_path_factory.mktemp("future_altered")
+    build_features(altered, {1: 10.0, 2: 99.0, 3: 99.0})
+
+    # Week 1 sees nothing before it, and week 2 sees only week 1, which is identical in both.
+    assert feature_rows(normal, 1) == feature_rows(altered, 1)
+    assert feature_rows(normal, 2) == feature_rows(altered, 2)
+
+    # Week 3 does depend on week 2, so it must react. (A test that never fails proves nothing.)
+    assert feature_rows(normal, 3) != feature_rows(altered, 3)
+
+
+def test_a_players_first_game_has_no_history(tmp_path):
+    build_features(tmp_path, {1: 10.0, 2: 20.0, 3: 30.0})
+
+    (row,) = feature_rows(tmp_path, 1)
+    mean3, mean5, mean10, season_avg, prior_games, targets = row
+    assert prior_games == 0
+    assert (mean3, mean5, mean10, season_avg, targets) == (None, None, None, None, None)
+
+
+def test_trailing_averages_use_only_earlier_weeks(tmp_path):
+    build_features(tmp_path, {1: 10.0, 2: 20.0, 3: 30.0})
+
+    # Week 3 averages weeks 1 and 2 only: (10 + 20) / 2 = 15, never touching its own 30.
+    (row,) = feature_rows(tmp_path, 3)
+    assert row[0] == 15.0  # ppr_mean3
+    assert row[4] == 2  # prior_games

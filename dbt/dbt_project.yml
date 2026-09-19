@@ -19,6 +19,8 @@ models:
       +materialized: table
     rankings:
       +materialized: table
+    predictions:
+      +materialized: table
 
 seeds:
   nfl:

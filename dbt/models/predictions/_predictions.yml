@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: feat_player_week
+    description: >
+      The feature store: one row per player-week holding only what was knowable before that week's
+      game kicked off. Every measure taken from a player's own play is shifted back one game.
+      `actual_ppr` is the outcome, carried for training and grading, and is never an input.
+    data_tests:
+      - not_empty
+      - unique_combination:
+          arguments:
+            columns: [player_id, season, week]
+      - expression_is_true:
+          arguments:
+            expression: prior_games >= 0
+      # A player's form cannot be negative in these measures.
+      - expression_is_true:
+          arguments:
+            expression: targets_mean5 >= 0
+            where: targets_mean5 is not null
+      - expression_is_true:
+          arguments:
+            expression: snap_share_mean5 between 0 and 1.0001
+            where: snap_share_mean5 is not null
+      # The implied team total should sit in a plausible scoring range.
+      - expression_is_true:
+          arguments:
+            expression: implied_team_total between 5 and 45
+            where: implied_team_total is not null
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: position_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [QB, RB, WR, TE, K]
+      - name: actual_ppr
+        data_tests: [not_null]
