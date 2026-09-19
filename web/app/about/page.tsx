@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ContactForm } from "@/components/ContactForm";
 import { Card, PageHeader } from "@/components/ui";
 import { AUTHOR, linkProps, otherProjectsUrl } from "@/lib/site";
 
@@ -36,19 +37,10 @@ export default function AboutPage() {
           <div className="min-w-0">
             <h2 className="text-lg font-semibold tracking-tight">Built by {AUTHOR.name}</h2>
             <p className="mt-1 text-sm text-muted">
-              I designed and built the site, the data pipeline and the prediction engine myself as a
-              portfolio project. The code is public.
+              I designed and built the site, the data pipeline and the prediction engine myself. The
+              code is public.
             </p>
             <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[8rem_1fr]">
-              <dt className="text-muted">Email</dt>
-              <dd>
-                <a
-                  className="text-accent underline underline-offset-2"
-                  href={`mailto:${AUTHOR.email}`}
-                >
-                  {AUTHOR.email}
-                </a>
-              </dd>
               <dt className="text-muted">Other projects</dt>
               <dd>
                 <a className="text-accent underline underline-offset-2" {...linkProps(otherProjectsUrl())}>
@@ -63,6 +55,16 @@ export default function AboutPage() {
               </dd>
             </dl>
           </div>
+        </Card>
+      </section>
+
+      <section aria-label="Contact">
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold tracking-tight">Send me a message</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            Questions about the project, the method, or the code are welcome.
+          </p>
+          <ContactForm />
         </Card>
       </section>
 

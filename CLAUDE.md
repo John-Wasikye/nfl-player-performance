@@ -31,7 +31,11 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
   `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`.
   The e2e suite builds into `out-e2e/` via `NEXT_DIST_DIR`, so it can run with a dev server up;
   they used to share `.next` and corrupt each other. `npm run research` alone regenerates the
-  research page after editing `docs/prediction-research.md`. Read `web/AGENTS.md`: this Next.js version differs from older ones, so check
+  research page after editing `docs/prediction-research.md`.
+- The About page's contact form posts JSON (`name`, `email`, `message`) to the address in
+  `NEXT_PUBLIC_CONTACT_ENDPOINT`, read at build time (for example a Formspree form URL, set in
+  `web/.env.local` locally or in the build environment). Unset, the form is replaced by a note.
+  No email address is published anywhere on the site, and a test checks that. Read `web/AGENTS.md`: this Next.js version differs from older ones, so check
   `web/node_modules/next/dist/docs/` before changing framework-level code.
 
 ## Conventions

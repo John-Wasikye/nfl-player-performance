@@ -8,16 +8,15 @@ export const SITE = {
 export const AUTHOR = {
   name: "John Wasikye",
   initials: "JW",
-  email: "john.wasikye@gmail.com",
   github: "https://github.com/John-Wasikye",
   repo: "https://github.com/John-Wasikye/nfl-player-performance",
-  // Set this to the portfolio site's address once it is live.
-  portfolioUrl: "",
+  // Set this to the address of the site that lists your other projects, once it is live.
+  projectsSite: "",
 };
 
-/** Where "my other projects" points: the portfolio if it is set, otherwise GitHub. */
+/** Where "my other projects" points: the projects site if it is set, otherwise GitHub. */
 export function otherProjectsUrl(): string {
-  return /^https?:\/\//.test(AUTHOR.portfolioUrl) ? AUTHOR.portfolioUrl : AUTHOR.github;
+  return /^https?:\/\//.test(AUTHOR.projectsSite) ? AUTHOR.projectsSite : AUTHOR.github;
 }
 
 /** Links to other sites should open safely in a new tab; a "#" placeholder should not. */
