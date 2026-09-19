@@ -1,0 +1,102 @@
+{
+  "questionable_player_weeks": 2347,
+  "base_rate_plays": 0.5602897315722198,
+  "mean_points_when_they_play": 8.242509505703422,
+  "note": "A wrong availability call costs roughly the player's whole score; the model's typical error on a player who plays is about 5.4 points.",
+  "structured_model": {
+    "test_rows": 840,
+    "auc": 0.6715265572573097,
+    "brier": 0.22736784624077322,
+    "brier_of_base_rate": 0.24931386857120294,
+    "accuracy_at_50pct": 0.625,
+    "accuracy_of_always_predicting_plays": 0.5404761904761904
+  },
+  "play_rate_by_injury_type": [
+    {
+      "injury": "Thigh",
+      "weeks": 42,
+      "plays": 0.476
+    },
+    {
+      "injury": "Hamstring",
+      "weeks": 288,
+      "plays": 0.5
+    },
+    {
+      "injury": "Calf",
+      "weeks": 80,
+      "plays": 0.512
+    },
+    {
+      "injury": "Knee",
+      "weeks": 354,
+      "plays": 0.542
+    },
+    {
+      "injury": "Concussion",
+      "weeks": 80,
+      "plays": 0.55
+    },
+    {
+      "injury": "Back",
+      "weeks": 83,
+      "plays": 0.554
+    },
+    {
+      "injury": "Shoulder",
+      "weeks": 156,
+      "plays": 0.558
+    },
+    {
+      "injury": "Illness",
+      "weeks": 142,
+      "plays": 0.57
+    },
+    {
+      "injury": "Ankle",
+      "weeks": 323,
+      "plays": 0.576
+    },
+    {
+      "injury": "Ribs",
+      "weeks": 45,
+      "plays": 0.578
+    },
+    {
+      "injury": "Quadricep",
+      "weeks": 55,
+      "plays": 0.582
+    },
+    {
+      "injury": "Groin",
+      "weeks": 113,
+      "plays": 0.611
+    },
+    {
+      "injury": "Toe",
+      "weeks": 45,
+      "plays": 0.622
+    },
+    {
+      "injury": "Foot",
+      "weeks": 84,
+      "plays": 0.655
+    },
+    {
+      "injury": "Hip",
+      "weeks": 99,
+      "plays": 0.657
+    }
+  ],
+  "spread_across_injury_types": {
+    "lowest": 0.47619047619047616,
+    "highest": 0.6565656565656566,
+    "range": 0.1803751803751804,
+    "types_considered": 15
+  },
+  "structured_plus_injury_type": {
+    "auc": 0.6626845997580516,
+    "brier": 0.2292625810277545,
+    "auc_gain_from_injury_text": -0.00884195749925809
+  }
+}

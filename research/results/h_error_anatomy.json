@@ -1,0 +1,87 @@
+{
+  "player_games": 7445,
+  "overall_mae": 5.445183379612822,
+  "concentration": {
+    "worst_1pct_of_games": {
+      "share_of_total_error": 0.0458553582608507,
+      "mean_error_in_group": 25.120922487899577
+    },
+    "worst_5pct_of_games": {
+      "share_of_total_error": 0.16617075269382792,
+      "mean_error_in_group": 18.108766111439092
+    },
+    "worst_10pct_of_games": {
+      "share_of_total_error": 0.279212323545505,
+      "mean_error_in_group": 15.213840524129767
+    },
+    "worst_25pct_of_games": {
+      "share_of_total_error": 0.5272469554984106,
+      "mean_error_in_group": 11.485368131643646
+    }
+  },
+  "segments": {
+    "returning": {
+      "games": 1743,
+      "share_of_games": 0.2341168569509738,
+      "share_of_total_error": 0.21653610093033318,
+      "mae_inside": 5.036283133251377,
+      "mae_outside": 5.570176913356772,
+      "excess_mae": -0.5338937801053945,
+      "overall_mae_saved_if_fixed": -0.12499353374394931
+    },
+    "thin_history": {
+      "games": 298,
+      "share_of_games": 0.04002686366689053,
+      "share_of_total_error": 0.039672838525507896,
+      "mae_inside": 5.397022428710831,
+      "mae_outside": 5.447191489780556,
+      "excess_mae": -0.05016906106972474,
+      "overall_mae_saved_if_fixed": -0.0020081101677337774
+    },
+    "volatile": {
+      "games": 1861,
+      "share_of_games": 0.24996642041638684,
+      "share_of_total_error": 0.2835679150308959,
+      "mae_inside": 6.177146895753489,
+      "mae_outside": 5.201239234996458,
+      "excess_mae": 0.9759076607570307,
+      "overall_mae_saved_if_fixed": 0.24394414461636457
+    },
+    "usage_shift": {
+      "games": 1952,
+      "share_of_games": 0.2621893888515782,
+      "share_of_total_error": 0.24148372364823498,
+      "mae_inside": 5.015165427616694,
+      "mae_outside": 5.597995147735241,
+      "excess_mae": -0.5828297201185473,
+      "overall_mae_saved_if_fixed": -0.1528117681224183
+    },
+    "questionable_flag": {
+      "games": 322,
+      "share_of_games": 0.043250503693754196,
+      "share_of_total_error": 0.04259797296511554,
+      "mae_inside": 5.363030591209968,
+      "mae_outside": 5.448897151600148,
+      "excess_mae": -0.08586656039017981,
+      "overall_mae_saved_if_fixed": -0.00371377198732544
+    },
+    "new_team": {
+      "games": 201,
+      "share_of_games": 0.02699798522498321,
+      "share_of_total_error": 0.026807963972077298,
+      "mae_inside": 5.406858276481089,
+      "mae_outside": 5.446246790122138,
+      "excess_mae": -0.03938851364104856,
+      "overall_mae_saved_if_fixed": -0.0010634105093150787
+    }
+  },
+  "any_segment": {
+    "share_of_games": 0.5977165883143049,
+    "share_of_total_error": 0.590967927468559,
+    "mae_inside": 5.383703245732757,
+    "mae_outside": 5.536531157831952,
+    "overall_mae_saved_if_fixed": -0.09134777821912911
+  },
+  "mae_if_we_knew_each_players_true_season_mean": 5.07442142219205,
+  "headroom_vs_that_oracle": 0.3707619574207719
+}
