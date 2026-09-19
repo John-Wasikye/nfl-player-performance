@@ -1,0 +1,249 @@
+{
+  "models": {
+    "test_rows": 7445,
+    "naive_ewm": {
+      "mae": 5.669563207378481,
+      "r2": 0.23157779205143314
+    },
+    "ridge": {
+      "mae": 5.4799748017263985,
+      "r2": 0.2802954090562979
+    },
+    "lightgbm": {
+      "mae": 5.439887495952328,
+      "r2": 0.28757185523045636
+    },
+    "ensemble_ridge_lightgbm": {
+      "mae": 5.441405004931708,
+      "r2": 0.2893630069131805,
+      "spearman": 0.5554628832859753
+    },
+    "ensemble_ridge_lightgbm_naive": {
+      "mae": 5.474824964001563,
+      "r2": 0.282084578816604
+    },
+    "ridge_standardized_coefficients": {
+      "ppr_m10": 1.446,
+      "ppr_m5": -1.582,
+      "ppr_ewm": 1.978,
+      "season_avg": 0.598,
+      "prior_games": 0.083,
+      "pos_code": -0.021,
+      "attempts_m5": 2.077,
+      "carries_m5": 1.315,
+      "targets_m5": 1.903,
+      "implied_total": 0.263,
+      "team_spread": 0.189,
+      "total_line": 0.188,
+      "is_home": 0.19
+    },
+    "quantile_interval_10_90": {
+      "coverage": 0.7724647414372062,
+      "mean_width": 16.394936525078382,
+      "below_p10": 0.12048354600402955,
+      "above_p90": 0.10705171255876428
+    },
+    "conformalized_interval_80": {
+      "coverage": 0.7971793149764943,
+      "mean_width": 16.717647813077146,
+      "qhat": 0.12790642316516165
+    }
+  },
+  "components": {
+    "QB": {
+      "test_rows": 1167,
+      "components": {
+        "attempts": {
+          "r2_model": 0.226,
+          "r2_naive_trailing_average": 0.193,
+          "spearman_model": 0.357,
+          "mean_actual": 28.07,
+          "share_of_games_zero": 0.036
+        },
+        "passing_yards": {
+          "r2_model": 0.238,
+          "r2_naive_trailing_average": 0.191,
+          "spearman_model": 0.427,
+          "mean_actual": 200.85,
+          "share_of_games_zero": 0.049
+        },
+        "passing_tds": {
+          "r2_model": 0.086,
+          "r2_naive_trailing_average": 0.019,
+          "spearman_model": 0.278,
+          "mean_actual": 1.32,
+          "share_of_games_zero": 0.299
+        },
+        "passing_interceptions": {
+          "r2_model": -0.102,
+          "r2_naive_trailing_average": -0.156,
+          "spearman_model": -0.053,
+          "mean_actual": 0.6,
+          "share_of_games_zero": 0.572
+        },
+        "rushing_yards": {
+          "r2_model": 0.253,
+          "r2_naive_trailing_average": 0.248,
+          "spearman_model": 0.528,
+          "mean_actual": 16.63,
+          "share_of_games_zero": 0.139
+        },
+        "rushing_tds": {
+          "r2_model": 0.06,
+          "r2_naive_trailing_average": -0.005,
+          "spearman_model": 0.166,
+          "mean_actual": 0.17,
+          "share_of_games_zero": 0.859
+        },
+        "ppr": {
+          "r2_model": 0.198,
+          "r2_naive_trailing_average": 0.149,
+          "spearman_model": 0.415,
+          "mean_actual": 14.65,
+          "share_of_games_zero": 0.013
+        }
+      }
+    },
+    "RB": {
+      "test_rows": 1913,
+      "components": {
+        "carries": {
+          "r2_model": 0.436,
+          "r2_naive_trailing_average": 0.434,
+          "spearman_model": 0.679,
+          "mean_actual": 10.57,
+          "share_of_games_zero": 0.046
+        },
+        "rushing_yards": {
+          "r2_model": 0.291,
+          "r2_naive_trailing_average": 0.281,
+          "spearman_model": 0.578,
+          "mean_actual": 46.14,
+          "share_of_games_zero": 0.052
+        },
+        "rushing_tds": {
+          "r2_model": 0.04,
+          "r2_naive_trailing_average": -0.036,
+          "spearman_model": 0.209,
+          "mean_actual": 0.36,
+          "share_of_games_zero": 0.714
+        },
+        "targets": {
+          "r2_model": 0.248,
+          "r2_naive_trailing_average": 0.242,
+          "spearman_model": 0.497,
+          "mean_actual": 2.54,
+          "share_of_games_zero": 0.183
+        },
+        "receptions": {
+          "r2_model": 0.209,
+          "r2_naive_trailing_average": 0.208,
+          "spearman_model": 0.464,
+          "mean_actual": 2.01,
+          "share_of_games_zero": 0.24
+        },
+        "receiving_yards": {
+          "r2_model": 0.119,
+          "r2_naive_trailing_average": 0.091,
+          "spearman_model": 0.364,
+          "mean_actual": 15.09,
+          "share_of_games_zero": 0.257
+        },
+        "receiving_tds": {
+          "r2_model": -0.003,
+          "r2_naive_trailing_average": -0.141,
+          "spearman_model": 0.099,
+          "mean_actual": 0.08,
+          "share_of_games_zero": 0.925
+        },
+        "ppr": {
+          "r2_model": 0.286,
+          "r2_naive_trailing_average": 0.266,
+          "spearman_model": 0.566,
+          "mean_actual": 10.7,
+          "share_of_games_zero": 0.029
+        }
+      }
+    },
+    "WR": {
+      "test_rows": 3038,
+      "components": {
+        "targets": {
+          "r2_model": 0.309,
+          "r2_naive_trailing_average": 0.296,
+          "spearman_model": 0.568,
+          "mean_actual": 5.48,
+          "share_of_games_zero": 0.027
+        },
+        "receptions": {
+          "r2_model": 0.274,
+          "r2_naive_trailing_average": 0.26,
+          "spearman_model": 0.533,
+          "mean_actual": 3.47,
+          "share_of_games_zero": 0.09
+        },
+        "receiving_yards": {
+          "r2_model": 0.184,
+          "r2_naive_trailing_average": 0.157,
+          "spearman_model": 0.46,
+          "mean_actual": 44.07,
+          "share_of_games_zero": 0.092
+        },
+        "receiving_tds": {
+          "r2_model": 0.015,
+          "r2_naive_trailing_average": -0.103,
+          "spearman_model": 0.148,
+          "mean_actual": 0.28,
+          "share_of_games_zero": 0.756
+        },
+        "ppr": {
+          "r2_model": 0.184,
+          "r2_naive_trailing_average": 0.16,
+          "spearman_model": 0.463,
+          "mean_actual": 9.75,
+          "share_of_games_zero": 0.078
+        }
+      }
+    },
+    "TE": {
+      "test_rows": 1327,
+      "components": {
+        "targets": {
+          "r2_model": 0.275,
+          "r2_naive_trailing_average": 0.273,
+          "spearman_model": 0.543,
+          "mean_actual": 4.41,
+          "share_of_games_zero": 0.027
+        },
+        "receptions": {
+          "r2_model": 0.204,
+          "r2_naive_trailing_average": 0.201,
+          "spearman_model": 0.472,
+          "mean_actual": 3.2,
+          "share_of_games_zero": 0.091
+        },
+        "receiving_yards": {
+          "r2_model": 0.142,
+          "r2_naive_trailing_average": 0.134,
+          "spearman_model": 0.42,
+          "mean_actual": 33.02,
+          "share_of_games_zero": 0.096
+        },
+        "receiving_tds": {
+          "r2_model": -0.013,
+          "r2_naive_trailing_average": -0.102,
+          "spearman_model": 0.058,
+          "mean_actual": 0.24,
+          "share_of_games_zero": 0.789
+        },
+        "ppr": {
+          "r2_model": 0.133,
+          "r2_naive_trailing_average": 0.131,
+          "spearman_model": 0.407,
+          "mean_actual": 8.01,
+          "share_of_games_zero": 0.087
+        }
+      }
+    }
+  }
+}

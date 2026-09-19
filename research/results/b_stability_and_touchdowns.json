@@ -1,0 +1,151 @@
+{
+  "b_stability": {
+    "QB": {
+      "player_season_pairs": 117,
+      "year_to_year_r": {
+        "attempts_per_game": 0.635,
+        "yards_per_attempt": 0.35,
+        "td_rate": 0.399,
+        "int_rate": 0.005,
+        "completion_pct": 0.378,
+        "rush_yards_per_game": 0.848,
+        "ppr_per_game": 0.498
+      },
+      "split_half_reliability_full_season": {
+        "attempts_per_game": 0.622,
+        "yards_per_attempt": 0.681,
+        "td_rate": 0.535,
+        "int_rate": 0.115,
+        "completion_pct": 0.593,
+        "rush_yards_per_game": 0.882,
+        "ppr_per_game": 0.725
+      }
+    },
+    "RB": {
+      "player_season_pairs": 143,
+      "year_to_year_r": {
+        "carries_per_game": 0.484,
+        "targets_per_game": 0.651,
+        "yards_per_carry": 0.167,
+        "td_per_carry": 0.086,
+        "ppr_per_game": 0.532
+      },
+      "split_half_reliability_full_season": {
+        "carries_per_game": 0.87,
+        "targets_per_game": 0.848,
+        "yards_per_carry": 0.355,
+        "td_per_carry": 0.342,
+        "ppr_per_game": 0.812
+      }
+    },
+    "WR": {
+      "player_season_pairs": 279,
+      "year_to_year_r": {
+        "targets_per_game": 0.706,
+        "target_share": 0.699,
+        "yards_per_target": 0.283,
+        "catch_rate": 0.471,
+        "td_per_target": 0.115,
+        "ppr_per_game": 0.659
+      },
+      "split_half_reliability_full_season": {
+        "targets_per_game": 0.891,
+        "target_share": 0.914,
+        "yards_per_target": 0.394,
+        "catch_rate": 0.519,
+        "td_per_target": 0.228,
+        "ppr_per_game": 0.825
+      }
+    },
+    "TE": {
+      "player_season_pairs": 102,
+      "year_to_year_r": {
+        "targets_per_game": 0.578,
+        "target_share": 0.553,
+        "yards_per_target": 0.363,
+        "catch_rate": 0.195,
+        "td_per_target": 0.166,
+        "ppr_per_game": 0.577
+      },
+      "split_half_reliability_full_season": {
+        "targets_per_game": 0.861,
+        "target_share": 0.869,
+        "yards_per_target": 0.293,
+        "catch_rate": 0.415,
+        "td_per_target": 0.382,
+        "ppr_per_game": 0.743
+      }
+    }
+  },
+  "c_touchdowns": {
+    "xtd_rate_by_field_position": {
+      "rush|1": 0.5516,
+      "rush|2": 0.38,
+      "rush|3": 0.3728,
+      "rush|4-5": 0.2397,
+      "rush|6-10": 0.1202,
+      "rush|11-20": 0.05,
+      "rush|21-40": 0.011,
+      "rush|41+": 0.0026,
+      "target|1": 0.5575,
+      "target|2": 0.254,
+      "target|3": 0.4498,
+      "target|4-5": 0.4122,
+      "target|6-10": 0.2824,
+      "target|11-20": 0.1341,
+      "target|21-40": 0.0425,
+      "target|41+": 0.0076
+    },
+    "calibration_2024_25": {
+      "RB": {
+        "player_games": 2824,
+        "actual_tds": 958,
+        "expected_tds": 1052.7260126946176,
+        "variance_to_mean_of_tds": 1.1455128873546183,
+        "pearson_dispersion_vs_poisson": 0.7150898443693946
+      },
+      "TE": {
+        "player_games": 2216,
+        "actual_tds": 420,
+        "expected_tds": 405.62899379800854,
+        "variance_to_mean_of_tds": 1.0395098355369234,
+        "pearson_dispersion_vs_poisson": 0.6121151212090575
+      },
+      "WR": {
+        "player_games": 4262,
+        "actual_tds": 1033,
+        "expected_tds": 901.6518676634411,
+        "variance_to_mean_of_tds": 1.0366683758885662,
+        "pearson_dispersion_vs_poisson": 1.260184712850352
+      }
+    },
+    "next_game_prediction": {
+      "RB": {
+        "player_games": 1831,
+        "r_next_td_vs_trailing_actual_tds": 0.24139313824905878,
+        "r_next_td_vs_trailing_expected_tds": 0.2582221230885404,
+        "r_next_td_vs_trailing_touches": 0.2492340126536923
+      },
+      "TE": {
+        "player_games": 316,
+        "r_next_td_vs_trailing_actual_tds": 0.10361032142815114,
+        "r_next_td_vs_trailing_expected_tds": 0.13527338638205874,
+        "r_next_td_vs_trailing_touches": 0.07591340623261611
+      },
+      "WR": {
+        "player_games": 1433,
+        "r_next_td_vs_trailing_actual_tds": 0.07046876339712989,
+        "r_next_td_vs_trailing_expected_tds": 0.1217615841521215,
+        "r_next_td_vs_trailing_touches": 0.09629115436641988
+      }
+    },
+    "next_game_prediction_all": {
+      "r_actual": 0.18483737332847155,
+      "r_expected": 0.22228235363011514,
+      "r_touches": 0.20052491282302454,
+      "share_of_games_with_a_td": 0.33128491620111733,
+      "mean_tds_per_game": 0.411731843575419
+    },
+    "r_squared_of_trailing_xtd": 0.04940944473534356
+  }
+}

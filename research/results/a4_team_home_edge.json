@@ -1,0 +1,31 @@
+{
+  "2021-23_vs_2024-25": {
+    "teams": 32,
+    "r": -0.04252899760775375,
+    "p": 0.817227003761147
+  },
+  "odd_vs_even_seasons": {
+    "teams": 32,
+    "r": -0.06464475510503065,
+    "p": 0.7252096664293775
+  },
+  "spread_of_team_edges_points": {
+    "mean": 4.134669729218821,
+    "sd_across_teams": 2.9298811024639506,
+    "expected_sd_from_luck_alone": 3.1154513761052307
+  },
+  "largest_home_edges": {
+    "MIA": 9.87,
+    "CHI": 9.48,
+    "DEN": 9.07,
+    "CLE": 8.59,
+    "DET": 8.16
+  },
+  "smallest_home_edges": {
+    "WAS": 0.81,
+    "BAL": 0.63,
+    "PHI": 0.18,
+    "ARI": 0.18,
+    "SEA": -0.57
+  }
+}

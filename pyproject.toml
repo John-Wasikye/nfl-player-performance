@@ -21,6 +21,14 @@ dev = [
     "pytest-cov>=5",
     "ruff>=0.6",
 ]
+# Used by the prediction research in research/ (see PREDICTION_RESEARCH_PAPER.md).
+research = [
+    "lightgbm>=4.5",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "scipy>=1.13",
+]
 
 [project.scripts]
 nfl-pipeline = "nfl_pipeline.cli:main"
@@ -40,3 +48,7 @@ src = ["pipeline"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Research scripts carry long descriptive strings and printed tables; readability beats wrapping.
+"research/*.py" = ["E501"]

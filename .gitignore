@@ -40,3 +40,5 @@ web/test-results/
 web/playwright-report/
 web/next-env.d.ts
 web/tsconfig.tsbuildinfo
+research/__pycache__/
+research/*.duckdb

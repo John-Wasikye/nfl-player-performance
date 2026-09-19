@@ -3,6 +3,8 @@
 Daily NFL stats pipeline that ranks players by position, with a website and (later) weekly predictions.
 The full build plan lives outside this repo at `C:\Users\johnw\OneDrive\Documents\nfl player performance\BUILD_PLAN.md`.
 Follow its phase order (1A local pipeline, 1B website, 1C AWS, 1D predictions, 1E launch polish, 2 app).
+**At the start of a session, read `C:\Users\johnw\OneDrive\Documents\nfl player performance\SESSION_CONTEXT.md`**:
+current status, decisions, open questions, and practical gotchas. Keep it up to date as work progresses.
 
 ## Commands
 

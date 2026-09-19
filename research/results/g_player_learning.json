@@ -1,0 +1,423 @@
+{
+  "weeks": 36,
+  "player_games": 7445,
+  "overall_mae": {
+    "base": 5.446242988128311,
+    "player_bias": 5.507069601679226,
+    "role_change": 5.5457588095347905,
+    "both": 5.634045390886423
+  },
+  "improvement_over_base": {
+    "base": 0.0,
+    "player_bias": -0.060826613550914566,
+    "role_change": -0.09951582140647908,
+    "both": -0.18780240275811177
+  },
+  "second_half_mae": {
+    "base": 5.486194417850466,
+    "player_bias": 5.525728571986369,
+    "role_change": 5.56960047184552,
+    "both": 5.640117699049707
+  },
+  "mean_players_with_learned_bias_per_week": 168.47222222222223,
+  "mean_players_flagged_role_change_per_week": 65.58333333333333,
+  "oracle_player_bias_gain_upper_bound": 0.16947920278367778,
+  "weekly": [
+    {
+      "season": 2024,
+      "week": 1,
+      "n": 214,
+      "players_with_bias": 0,
+      "players_flagged_role_change": 58,
+      "base": 4.9913,
+      "player_bias": 4.9913,
+      "role_change": 5.1012,
+      "both": 5.1012
+    },
+    {
+      "season": 2024,
+      "week": 2,
+      "n": 204,
+      "players_with_bias": 0,
+      "players_flagged_role_change": 63,
+      "base": 5.073,
+      "player_bias": 5.073,
+      "role_change": 5.2256,
+      "both": 5.2256
+    },
+    {
+      "season": 2024,
+      "week": 3,
+      "n": 206,
+      "players_with_bias": 0,
+      "players_flagged_role_change": 71,
+      "base": 5.9735,
+      "player_bias": 5.9735,
+      "role_change": 6.0447,
+      "both": 6.0447
+    },
+    {
+      "season": 2024,
+      "week": 4,
+      "n": 220,
+      "players_with_bias": 149,
+      "players_flagged_role_change": 61,
+      "base": 5.2684,
+      "player_bias": 5.32,
+      "role_change": 5.3327,
+      "both": 5.4212
+    },
+    {
+      "season": 2024,
+      "week": 5,
+      "n": 187,
+      "players_with_bias": 130,
+      "players_flagged_role_change": 58,
+      "base": 5.7581,
+      "player_bias": 5.8768,
+      "role_change": 5.844,
+      "both": 6.0296
+    },
+    {
+      "season": 2024,
+      "week": 6,
+      "n": 195,
+      "players_with_bias": 142,
+      "players_flagged_role_change": 72,
+      "base": 5.3791,
+      "player_bias": 5.5056,
+      "role_change": 5.5479,
+      "both": 5.7448
+    },
+    {
+      "season": 2024,
+      "week": 7,
+      "n": 222,
+      "players_with_bias": 171,
+      "players_flagged_role_change": 66,
+      "base": 5.5917,
+      "player_bias": 5.5724,
+      "role_change": 5.6346,
+      "both": 5.6887
+    },
+    {
+      "season": 2024,
+      "week": 8,
+      "n": 228,
+      "players_with_bias": 190,
+      "players_flagged_role_change": 82,
+      "base": 5.2992,
+      "player_bias": 5.3908,
+      "role_change": 5.5114,
+      "both": 5.6651
+    },
+    {
+      "season": 2024,
+      "week": 9,
+      "n": 206,
+      "players_with_bias": 179,
+      "players_flagged_role_change": 61,
+      "base": 5.3827,
+      "player_bias": 5.4418,
+      "role_change": 5.41,
+      "both": 5.4731
+    },
+    {
+      "season": 2024,
+      "week": 10,
+      "n": 188,
+      "players_with_bias": 167,
+      "players_flagged_role_change": 47,
+      "base": 5.04,
+      "player_bias": 5.1689,
+      "role_change": 5.0328,
+      "both": 5.2334
+    },
+    {
+      "season": 2024,
+      "week": 11,
+      "n": 203,
+      "players_with_bias": 180,
+      "players_flagged_role_change": 72,
+      "base": 5.8939,
+      "player_bias": 5.9046,
+      "role_change": 6.0717,
+      "both": 6.1274
+    },
+    {
+      "season": 2024,
+      "week": 12,
+      "n": 191,
+      "players_with_bias": 171,
+      "players_flagged_role_change": 56,
+      "base": 5.2549,
+      "player_bias": 5.2786,
+      "role_change": 5.2426,
+      "both": 5.3264
+    },
+    {
+      "season": 2024,
+      "week": 13,
+      "n": 222,
+      "players_with_bias": 204,
+      "players_flagged_role_change": 70,
+      "base": 5.242,
+      "player_bias": 5.3048,
+      "role_change": 5.2641,
+      "both": 5.3424
+    },
+    {
+      "season": 2024,
+      "week": 14,
+      "n": 181,
+      "players_with_bias": 162,
+      "players_flagged_role_change": 69,
+      "base": 5.632,
+      "player_bias": 5.6235,
+      "role_change": 5.8649,
+      "both": 5.9192
+    },
+    {
+      "season": 2024,
+      "week": 15,
+      "n": 229,
+      "players_with_bias": 215,
+      "players_flagged_role_change": 79,
+      "base": 5.849,
+      "player_bias": 5.9204,
+      "role_change": 5.8245,
+      "both": 5.942
+    },
+    {
+      "season": 2024,
+      "week": 16,
+      "n": 209,
+      "players_with_bias": 197,
+      "players_flagged_role_change": 56,
+      "base": 5.1986,
+      "player_bias": 5.2191,
+      "role_change": 5.3083,
+      "both": 5.4003
+    },
+    {
+      "season": 2024,
+      "week": 17,
+      "n": 215,
+      "players_with_bias": 191,
+      "players_flagged_role_change": 66,
+      "base": 5.7991,
+      "player_bias": 5.7214,
+      "role_change": 5.654,
+      "both": 5.6105
+    },
+    {
+      "season": 2024,
+      "week": 18,
+      "n": 197,
+      "players_with_bias": 176,
+      "players_flagged_role_change": 63,
+      "base": 5.5268,
+      "player_bias": 5.5964,
+      "role_change": 5.6421,
+      "both": 5.7445
+    },
+    {
+      "season": 2025,
+      "week": 1,
+      "n": 218,
+      "players_with_bias": 203,
+      "players_flagged_role_change": 59,
+      "base": 5.2275,
+      "player_bias": 5.4453,
+      "role_change": 5.4331,
+      "both": 5.6701
+    },
+    {
+      "season": 2025,
+      "week": 2,
+      "n": 209,
+      "players_with_bias": 199,
+      "players_flagged_role_change": 68,
+      "base": 5.3825,
+      "player_bias": 5.497,
+      "role_change": 5.6357,
+      "both": 5.7924
+    },
+    {
+      "season": 2025,
+      "week": 3,
+      "n": 206,
+      "players_with_bias": 199,
+      "players_flagged_role_change": 61,
+      "base": 5.2884,
+      "player_bias": 5.5272,
+      "role_change": 5.386,
+      "both": 5.5903
+    },
+    {
+      "season": 2025,
+      "week": 4,
+      "n": 228,
+      "players_with_bias": 195,
+      "players_flagged_role_change": 71,
+      "base": 5.4116,
+      "player_bias": 5.5404,
+      "role_change": 5.2478,
+      "both": 5.4126
+    },
+    {
+      "season": 2025,
+      "week": 5,
+      "n": 195,
+      "players_with_bias": 160,
+      "players_flagged_role_change": 56,
+      "base": 5.1817,
+      "player_bias": 5.3314,
+      "role_change": 5.348,
+      "both": 5.4435
+    },
+    {
+      "season": 2025,
+      "week": 6,
+      "n": 203,
+      "players_with_bias": 168,
+      "players_flagged_role_change": 63,
+      "base": 5.3946,
+      "player_bias": 5.4144,
+      "role_change": 5.5834,
+      "both": 5.6189
+    },
+    {
+      "season": 2025,
+      "week": 7,
+      "n": 214,
+      "players_with_bias": 190,
+      "players_flagged_role_change": 69,
+      "base": 5.875,
+      "player_bias": 5.9763,
+      "role_change": 6.0564,
+      "both": 6.1568
+    },
+    {
+      "season": 2025,
+      "week": 8,
+      "n": 186,
+      "players_with_bias": 167,
+      "players_flagged_role_change": 66,
+      "base": 5.4347,
+      "player_bias": 5.4532,
+      "role_change": 5.5899,
+      "both": 5.6625
+    },
+    {
+      "season": 2025,
+      "week": 9,
+      "n": 191,
+      "players_with_bias": 180,
+      "players_flagged_role_change": 49,
+      "base": 5.4393,
+      "player_bias": 5.4957,
+      "role_change": 5.5248,
+      "both": 5.6185
+    },
+    {
+      "season": 2025,
+      "week": 10,
+      "n": 197,
+      "players_with_bias": 180,
+      "players_flagged_role_change": 64,
+      "base": 5.6125,
+      "player_bias": 5.6553,
+      "role_change": 5.7364,
+      "both": 5.7828
+    },
+    {
+      "season": 2025,
+      "week": 11,
+      "n": 212,
+      "players_with_bias": 201,
+      "players_flagged_role_change": 68,
+      "base": 5.5295,
+      "player_bias": 5.6897,
+      "role_change": 5.6443,
+      "both": 5.8364
+    },
+    {
+      "season": 2025,
+      "week": 12,
+      "n": 195,
+      "players_with_bias": 184,
+      "players_flagged_role_change": 66,
+      "base": 5.4075,
+      "player_bias": 5.471,
+      "role_change": 5.5855,
+      "both": 5.6432
+    },
+    {
+      "season": 2025,
+      "week": 13,
+      "n": 228,
+      "players_with_bias": 220,
+      "players_flagged_role_change": 74,
+      "base": 5.0068,
+      "player_bias": 5.1067,
+      "role_change": 5.094,
+      "both": 5.2088
+    },
+    {
+      "season": 2025,
+      "week": 14,
+      "n": 202,
+      "players_with_bias": 191,
+      "players_flagged_role_change": 76,
+      "base": 5.5516,
+      "player_bias": 5.6571,
+      "role_change": 5.6271,
+      "both": 5.7273
+    },
+    {
+      "season": 2025,
+      "week": 15,
+      "n": 216,
+      "players_with_bias": 207,
+      "players_flagged_role_change": 73,
+      "base": 5.7414,
+      "player_bias": 5.7502,
+      "role_change": 5.8442,
+      "both": 5.8703
+    },
+    {
+      "season": 2025,
+      "week": 16,
+      "n": 223,
+      "players_with_bias": 211,
+      "players_flagged_role_change": 71,
+      "base": 5.7347,
+      "player_bias": 5.7016,
+      "role_change": 5.8332,
+      "both": 5.8263
+    },
+    {
+      "season": 2025,
+      "week": 17,
+      "n": 214,
+      "players_with_bias": 207,
+      "players_flagged_role_change": 76,
+      "base": 5.5307,
+      "player_bias": 5.4417,
+      "role_change": 5.6786,
+      "both": 5.597
+    },
+    {
+      "season": 2025,
+      "week": 18,
+      "n": 191,
+      "players_with_bias": 179,
+      "players_flagged_role_change": 61,
+      "base": 5.131,
+      "player_bias": 5.1912,
+      "role_change": 5.2724,
+      "both": 5.3692
+    }
+  ]
+}

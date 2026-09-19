@@ -1,0 +1,238 @@
+{
+  "a1_team_level": {
+    "overall": {
+      "games": 1333,
+      "home_points_minus_away": 2.0600150037509377,
+      "home_points_minus_away_se": 0.3894314220131538,
+      "home_win_rate": 0.5393848462115529
+    },
+    "by_season": [
+      {
+        "season": 2021,
+        "games": 269,
+        "home_pts": 23.777,
+        "away_pts": 22.212,
+        "margin": 1.565,
+        "home_win": 0.511
+      },
+      {
+        "season": 2022,
+        "games": 265,
+        "home_pts": 22.913,
+        "away_pts": 20.789,
+        "margin": 2.125,
+        "home_win": 0.566
+      },
+      {
+        "season": 2023,
+        "games": 267,
+        "home_pts": 23.221,
+        "away_pts": 20.509,
+        "margin": 2.712,
+        "home_win": 0.558
+      },
+      {
+        "season": 2024,
+        "games": 267,
+        "home_pts": 23.753,
+        "away_pts": 22.034,
+        "margin": 1.719,
+        "home_win": 0.524
+      },
+      {
+        "season": 2025,
+        "games": 265,
+        "home_pts": 24.181,
+        "away_pts": 21.996,
+        "margin": 2.185,
+        "home_win": 0.538
+      }
+    ],
+    "epa_per_play": {
+      "home_epa_per_play": -0.006963689263108436,
+      "away_epa_per_play": -0.01017789277552347,
+      "home_minus_away": 0.0032142035124150337,
+      "se": 0.008070367979655841
+    },
+    "epa_home_minus_away_by_season": {
+      "2021": -0.003,
+      "2022": 0.0033,
+      "2023": 0.0173,
+      "2024": -0.0089,
+      "2025": 0.0075
+    }
+  },
+  "a2_players_paired": {
+    "K": {
+      "player_seasons": 155,
+      "home_minus_away_points": 0.41633384536610346,
+      "se": 0.18285743772007182,
+      "avg_points": 8.083689516260673,
+      "pct_of_average": 5.1502948564344395
+    },
+    "QB": {
+      "player_seasons": 169,
+      "home_minus_away_points": 1.2755899314360852,
+      "se": 0.31802239584670894,
+      "avg_points": 15.757101176224479,
+      "pct_of_average": 8.095333762029739
+    },
+    "RB": {
+      "player_seasons": 302,
+      "home_minus_away_points": 0.4579892849975632,
+      "se": 0.20884296415335277,
+      "avg_points": 11.284418653852965,
+      "pct_of_average": 4.058598843647004
+    },
+    "TE": {
+      "player_seasons": 178,
+      "home_minus_away_points": 0.09613964686998412,
+      "se": 0.24183604575443518,
+      "avg_points": 9.067270071303449,
+      "pct_of_average": 1.0602931876293362
+    },
+    "WR": {
+      "player_seasons": 474,
+      "home_minus_away_points": 0.5045175473846361,
+      "se": 0.1681101568756071,
+      "avg_points": 10.589904895162062,
+      "pct_of_average": 4.764136716800186
+    },
+    "ALL": {
+      "player_seasons": 1278,
+      "home_minus_away_points": 0.5279134453183749,
+      "se": 0.09884269769316861,
+      "pct_of_average": 4.833802298986636
+    }
+  },
+  "a3_stadiums": {
+    "league_visitor_false_starts_per_100_snaps": 1.8033552466142184,
+    "false_start_heterogeneity_test": {
+      "chi2": 49.42614933782023,
+      "dof": 29,
+      "p_value": 0.010405613936876668
+    },
+    "epa_heterogeneity_test": {
+      "F": 1.6536254779764532,
+      "p_value": 0.016244450738381808,
+      "stadiums": 30
+    },
+    "repeatability_2021_23_vs_2024_25": {
+      "stadiums": 30,
+      "false_start_rate_correlation": 0.1124676882969396,
+      "false_start_rate_p": 0.5540394214906297,
+      "epa_correlation": -0.24993592042816526,
+      "epa_p": 0.1828463917532819
+    },
+    "indoor_vs_outdoor": {
+      "table": [
+        {
+          "indoor": false,
+          "games": 906,
+          "fs": 1029.0,
+          "snaps": 56388.0,
+          "epa_vs_own_avg": -0.006,
+          "fs_per_100": 1.825
+        },
+        {
+          "indoor": true,
+          "games": 427,
+          "fs": 477.0,
+          "snaps": 27123.0,
+          "epa_vs_own_avg": -0.002,
+          "fs_per_100": 1.759
+        }
+      ],
+      "epa_difference": 0.004315658815958767,
+      "t_test_p": 0.6945886606231413
+    },
+    "highest_false_start_stadiums": [
+      {
+        "stadium_id": "CLE00",
+        "home_team": "CLE",
+        "visits": 42,
+        "fs_per_100": 2.454,
+        "epa_vs_own_avg": -0.099
+      },
+      {
+        "stadium_id": "PIT00",
+        "home_team": "PIT",
+        "visits": 42,
+        "fs_per_100": 2.413,
+        "epa_vs_own_avg": -0.005
+      },
+      {
+        "stadium_id": "MIA00",
+        "home_team": "MIA",
+        "visits": 42,
+        "fs_per_100": 2.403,
+        "epa_vs_own_avg": -0.009
+      },
+      {
+        "stadium_id": "DAL00",
+        "home_team": "DAL",
+        "visits": 42,
+        "fs_per_100": 2.248,
+        "epa_vs_own_avg": -0.0
+      },
+      {
+        "stadium_id": "NAS00",
+        "home_team": "TEN",
+        "visits": 42,
+        "fs_per_100": 2.235,
+        "epa_vs_own_avg": 0.024
+      },
+      {
+        "stadium_id": "SEA00",
+        "home_team": "SEA",
+        "visits": 42,
+        "fs_per_100": 2.211,
+        "epa_vs_own_avg": 0.019
+      }
+    ],
+    "worst_for_visiting_epa": [
+      {
+        "stadium_id": "CLE00",
+        "home_team": "CLE",
+        "visits": 42,
+        "fs_per_100": 2.454,
+        "epa_vs_own_avg": -0.099
+      },
+      {
+        "stadium_id": "MIN01",
+        "home_team": "MIN",
+        "visits": 41,
+        "fs_per_100": 1.803,
+        "epa_vs_own_avg": -0.059
+      },
+      {
+        "stadium_id": "BUF00",
+        "home_team": "BUF",
+        "visits": 41,
+        "fs_per_100": 1.873,
+        "epa_vs_own_avg": -0.058
+      },
+      {
+        "stadium_id": "DEN00",
+        "home_team": "DEN",
+        "visits": 43,
+        "fs_per_100": 2.035,
+        "epa_vs_own_avg": -0.057
+      },
+      {
+        "stadium_id": "SFO01",
+        "home_team": "SF",
+        "visits": 42,
+        "fs_per_100": 1.403,
+        "epa_vs_own_avg": -0.047
+      },
+      {
+        "stadium_id": "KAN00",
+        "home_team": "KC",
+        "visits": 42,
+        "fs_per_100": 1.156,
+        "epa_vs_own_avg": -0.044
+      }
+    ]
+  }
+}
