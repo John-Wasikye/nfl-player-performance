@@ -80,6 +80,56 @@ Charges (`EstimatedCharges`)**, threshold **$5**. Create an SNS topic with your 
 
 The first ten CloudWatch alarms are free, so these cost nothing.
 
+### Prove the alert path works, don't assume it
+
+Configured is not the same as working, and this project's standing rule is in `no-silent-failures.md`:
+test it, do not inspect it. Run all four of these before moving on.
+
+**1. The alarm exists in the right region, has an action, and its actions are enabled.**
+
+```
+aws cloudwatch describe-alarms --region us-east-1   --query 'MetricAlarms[].{Name:AlarmName,State:StateValue,Actions:AlarmActions,Enabled:ActionsEnabled,Missing:TreatMissingData}'
+```
+
+An empty list means the alarm is in another region. `ActionsEnabled: false` means it will change state and
+tell nobody.
+
+**2. The email subscription is genuinely confirmed.**
+
+```
+aws sns list-subscriptions --query 'Subscriptions[].{Endpoint:Endpoint,Arn:SubscriptionArn}'
+```
+
+A confirmed subscription has a full ARN ending in a UUID. The console shows the status in words, and it
+must read **Confirmed** rather than pending.
+
+**3. Make the topic actually deliver.** This is the test that matters.
+
+```
+aws sns publish --region us-east-1 --topic-arn <your-topic-arn>   --subject "Guardrail test" --message "If this arrives, the alert path works."
+```
+
+No email within a minute means the alert path is broken. Find that out now rather than during the first
+real incident.
+
+**4. Fire the alarm on purpose**, which exercises alarm to SNS to inbox end to end:
+
+```
+aws cloudwatch set-alarm-state --region us-east-1   --alarm-name <your-alarm-name> --state-value ALARM   --state-reason "deliberate test of the alert path"
+```
+
+The forced state reverts at the next evaluation, so this is safe. AWS does not validate alarm actions when
+you create them and does not notice an action pointing at a topic that no longer exists, so firing it is
+the only way to know the wiring is real.
+
+**5. Confirm billing access actually took effect** (step 12.3), as your non-root identity:
+
+```
+aws budgets describe-budgets --account-id $(aws sts get-caller-identity --query Account --output text)
+```
+
+Your $5 budget should come back. An access-denied error here means 12.3 did not take.
+
 ## 12.5 Create an identity for daily use
 
 One decision left here, and it is worth understanding rather than guessing.
@@ -135,6 +185,8 @@ that before going further.
 - `aws sts get-caller-identity` returns your account and a non-root identity.
 - Root has MFA enabled and no access keys.
 - A $5 budget and a $5 billing alarm both exist, and you have clicked the SNS confirmation email.
+- **You have fired the alarm on purpose and seen the email arrive.** Not just created it.
+- `aws budgets describe-budgets` returns the budget as your non-root identity.
 - `terraform version` runs.
 - You have written down your bucket prefix and confirmed the region is us-east-1.
 
@@ -147,6 +199,12 @@ that before going further.
   conflict with those credits. It does not matter yet - step 17 is where it lands - and the fallback is
   harmless, because pay-as-you-go CloudFront still includes 1 TB of transfer and 10M requests a month
   free. Check eligibility when you get there rather than now.
+
+One rule to carry forward: every alarm added from here on sets `treat_missing_data = "breaching"`, and
+every alert path is fired once on purpose. The reason, and the full inventory of ways this system could
+fail quietly, is in `no-silent-failures.md`. The single worst case is a staleness alarm left on CloudWatch's
+default, which goes to `INSUFFICIENT_DATA` instead of `ALARM` when the pipeline stops emitting entirely -
+silent at exactly the moment it is needed.
 
 Next: step 13, the Terraform base (remote state, buckets, IAM roles, ECR, budget). The bucket layout is
 already decided in `storage-design.md`.
