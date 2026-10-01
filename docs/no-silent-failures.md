@@ -36,11 +36,11 @@ Status is one of: **done** (already true in the code), **step N** (handled in th
 
 | # | How it fails quietly | What makes it loud | Status |
 |---|---|---|---|
-| 6 | The ingest's "skip if the source has not changed" check wrongly concludes nothing changed, so the run exits 0 having published last week's numbers as current | A freshness assertion in the publish gate: during the season, if the newest final game is older than a threshold, fail the publish | **to do** |
+| 6 | The ingest's "skip if the source has not changed" check wrongly concludes nothing changed, so the run exits 0 having published last week's numbers as current | `_freshness_problems` in `publish.py`, inside the existing validation gate, so nothing is written when it trips. Check A: a regular-season game kicked off more than `STALE_AFTER_HOURS` ago and still has no result in `stg_schedules` | **done** |
 | 7 | A model builds with far too few rows and publishes anyway | `MIN_RANKED` per position in `publish.py` already blocks this, and the validation gate means nothing is written when it trips | **done** |
 | 8 | **The Fargate task never starts** - bad image pull, missing task role, subnet with no route out. Your code never runs, so no alarm based on your code's output can fire | An alarm on EventBridge `FailedInvocations`, plus an ECS task-state-change rule for non-zero exits. #2 catches it from the other side, which is why #2 is the keystone | step 15 |
 | 9 | A dbt test silently does not run because its model was excluded from the selector. This already happened once here, with the `FIXTURELESS` constant | The exclusion is gone and the whole graph is tested again. Keep `dbt build` failing the run on any test failure, and treat a drop in the test count as a defect | **done**, keep |
-| 10 | The published week is not the week you think it is | Assert the published week equals the expected week in the validation gate | **to do** |
+| 10 | The published week is not the week you think it is - dbt or the publish lagging the raw data, so the rankings silently stop a week short | Check B of `_freshness_problems`: a week whose result has been settled longer than the threshold must be covered by the rankings | **done** |
 
 ### Records and publishing
 
@@ -58,6 +58,35 @@ Status is one of: **done** (already true in the code), **step N** (handled in th
 |---|---|---|---|
 | 16 | The browser's fetch of `/data/v1` fails and the page renders empty rather than wrong-looking | Explicit empty, error and loading states exist and are covered by the e2e suite | **done** |
 | 17 | A schema change breaks the contract between `contract.py` and `web/lib/types.ts` | `SCHEMA_VERSION` must be bumped on any contract change; the publish gate validates against the schema | **done** |
+
+### How the freshness gate is built
+
+Both checks live in `_freshness_problems` and append to the same `problems` list the rest of the
+validation gate uses, so a stale run writes nothing at all and the previously published data stays
+live rather than being overwritten with something older.
+
+Four decisions worth keeping:
+
+- **One threshold for both checks** (`STALE_AFTER_HOURS = 48`). It also absorbs the ordinary case of
+  nflverse publishing a schedule result before the weekly player stats that go with it, which would
+  otherwise be a false alarm on check B.
+- **Errors lean toward silence being *late*, never toward false alarms.** `kickoff_et` is a naive
+  Eastern timestamp, and converting it properly would mean depending on a timezone database
+  (`zoneinfo` needs `tzdata` on Windows) for at most an hour of precision against a 48-hour
+  threshold. The fixed `EASTERN_TO_UTC_HOURS = 5` makes every game look up to an hour more recent
+  than it was, which can only delay a complaint. A game missing its kickoff time falls back to the
+  date at end of day for the same reason.
+- **Nothing is skipped for being unparseable.** A game with neither a kickoff nor a date is reported
+  as a problem rather than filtered out of the query, because a row the check silently drops is
+  exactly the hole this rule exists to close.
+- **A missing `stg_schedules` is a failure, not a pass.** A check that cannot run must never count as
+  a check that passed, so the test fixture gained a schedule table rather than the code gaining a
+  "skip if absent" branch.
+
+Nine tests cover it, including the three cases that must *not* block a publish: a game still in
+progress on a Sunday run, preseason and playoff games, and the offseason. The six that assert a
+failure were each confirmed to fail when the check is disabled, so none of them passes for an
+unrelated reason.
 
 ## What to carry into every later step
 

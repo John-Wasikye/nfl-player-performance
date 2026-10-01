@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import duckdb
 import pyarrow as pa
@@ -66,7 +66,29 @@ def all_rankings(weeks=(1, 2)):
     return rows
 
 
-def make_warehouse(path, rankings=None, breakdown=None):
+def game(week, *, kickoff, final=True, game_type="REG", season=2026):
+    """One stg_schedules row. `kickoff` is a naive US-Eastern timestamp, as nflverse has it."""
+    return {
+        "game_id": f"{season}_{week:02d}_KC_BUF",
+        "season": season,
+        "game_type": game_type,
+        "week": week,
+        "game_date": kickoff.date() if kickoff is not None else None,
+        "kickoff_et": kickoff,
+        "is_final": final,
+    }
+
+
+def default_schedule():
+    """Weeks 1 and 2 played, week 3 still to come, consistent with NOW."""
+    return [
+        game(1, kickoff=datetime(2026, 9, 10, 20, 15)),
+        game(2, kickoff=datetime(2026, 9, 17, 20, 15)),
+        game(3, kickoff=datetime(2026, 9, 24, 20, 15), final=False),
+    ]
+
+
+def make_warehouse(path, rankings=None, breakdown=None, schedules=None, with_schedules=True):
     rankings = all_rankings() if rankings is None else rankings
     breakdown = breakdown if breakdown is not None else [
         {
@@ -86,6 +108,21 @@ def make_warehouse(path, rankings=None, breakdown=None):
             connection.register("staged", pa.Table.from_pylist(rows))
             connection.execute(f"create table {name} as select * from staged")
             connection.unregister("staged")
+    if with_schedules:
+        rows = default_schedule() if schedules is None else schedules
+        connection.execute(
+            "create table stg_schedules ("
+            "game_id varchar, season integer, game_type varchar, week integer, "
+            "game_date date, kickoff_et timestamp, is_final boolean)"
+        )
+        for row in rows:
+            connection.execute(
+                "insert into stg_schedules values (?, ?, ?, ?, ?, ?, ?)",
+                [
+                    row["game_id"], row["season"], row["game_type"], row["week"],
+                    row["game_date"], row["kickoff_et"], row["is_final"],
+                ],
+            )  # fmt: skip
     connection.execute(
         "create table ranking_config as select * from (values "
         + ", ".join(f"('{p}', 14.0, 0.7, 0.3)" for p in POSITIONS)
@@ -482,3 +519,108 @@ def test_the_ledger_records_failures_as_well_as_wins():
 
     assert ledger.entries[0].promoted is False
     assert ledger.entries[0].improvement < 0
+
+
+# --- Freshness: the publish must refuse to serve stale numbers as current -----------------
+# The ingest skips files whose source has not changed, so a stalled source looks exactly like
+# a quiet week: every step succeeds and last week's rankings go out as today's. These are the
+# checks that make that case loud. See docs/no-silent-failures.md.
+
+
+def test_a_played_game_with_no_result_blocks_the_publish(tmp_path, lake):
+    """Our copy of reality is behind reality: the game is long over and we have no score."""
+    schedule = [
+        game(1, kickoff=datetime(2026, 9, 10, 20, 15)),
+        game(2, kickoff=datetime(2026, 9, 13, 13, 0), final=False),  # five days before NOW
+    ]
+    warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
+
+    with pytest.raises(PublishError, match="still have no result"):
+        publish(warehouse, lake, now=NOW)
+
+    assert not published_anything(tmp_path)
+
+
+def test_rankings_lagging_a_settled_week_block_the_publish(tmp_path, lake):
+    """The rankings are behind our copy: week 3 settled days ago and is not ranked."""
+    schedule = default_schedule() + [game(3, kickoff=datetime(2026, 9, 13, 13, 0))]
+    warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
+
+    with pytest.raises(PublishError, match="rankings stop at week 2"):
+        publish(warehouse, lake, now=NOW)
+
+    assert not published_anything(tmp_path)
+
+
+def test_a_game_still_in_progress_does_not_block_the_publish(tmp_path, lake):
+    """A Sunday run must not be blocked by Sunday's games, which are not over yet."""
+    kickoff = (NOW - timedelta(hours=6)).replace(tzinfo=None)
+    schedule = default_schedule() + [game(3, kickoff=kickoff, final=False)]
+    warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
+
+    summary = publish(warehouse, lake, now=NOW)
+
+    assert summary.latest_week == 2
+
+
+def test_playoff_and_preseason_games_are_ignored(tmp_path, lake):
+    """Rankings are regular season only, so other game types must not drive freshness."""
+    schedule = default_schedule() + [
+        game(1, kickoff=datetime(2026, 8, 10, 20, 0), final=False, game_type="PRE"),
+        game(1, kickoff=datetime(2026, 9, 11, 20, 0), final=False, game_type="POST"),
+    ]
+    warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
+
+    assert publish(warehouse, lake, now=NOW).latest_week == 2
+
+
+def test_a_missing_schedule_table_is_reported_rather_than_passed(tmp_path, lake):
+    """A check that cannot run must not count as a check that passed."""
+    warehouse = make_warehouse(tmp_path / "w.duckdb", with_schedules=False)
+
+    with pytest.raises(PublishError, match="stg_schedules"):
+        publish(warehouse, lake, now=NOW)
+
+    assert not published_anything(tmp_path)
+
+
+def test_a_season_with_no_regular_season_games_is_reported(tmp_path, lake):
+    warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=[])
+
+    with pytest.raises(PublishError, match="no regular-season games"):
+        publish(warehouse, lake, now=NOW)
+
+
+def test_a_game_with_no_kickoff_or_date_is_reported(tmp_path, lake):
+    """Nothing gets skipped for being unparseable; an unusable row is said out loud."""
+    schedule = default_schedule() + [game(3, kickoff=None, final=False)]
+    warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
+
+    with pytest.raises(PublishError, match="neither a kickoff time nor a date"):
+        publish(warehouse, lake, now=NOW)
+
+
+def test_a_game_with_only_a_date_is_still_checked(tmp_path, lake):
+    """A missing kickoff time falls back to the date instead of dropping the game."""
+    stale = game(2, kickoff=datetime(2026, 9, 13, 13, 0), final=False)
+    stale["kickoff_et"] = None  # date survives, time does not
+    warehouse = make_warehouse(
+        tmp_path / "w.duckdb", schedules=[game(1, kickoff=datetime(2026, 9, 10, 20, 15)), stale]
+    )
+
+    with pytest.raises(PublishError, match="still have no result"):
+        publish(warehouse, lake, now=NOW)
+
+
+def test_the_offseason_is_not_stale(tmp_path, lake):
+    """In March every regular-season game is in the future, so nothing is overdue."""
+    schedule = [
+        game(1, kickoff=datetime(2026, 9, 10, 20, 15), final=False),
+        game(2, kickoff=datetime(2026, 9, 17, 20, 15), final=False),
+    ]
+    rows = all_rankings(weeks=(1, 2))
+    warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows, schedules=schedule)
+
+    summary = publish(warehouse, lake, now=datetime(2026, 3, 1, tzinfo=timezone.utc))
+
+    assert summary.latest_week == 2

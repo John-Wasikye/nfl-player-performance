@@ -12,7 +12,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +50,19 @@ MOVERS_PER_POSITION = 5
 # The fewest ranked players we accept per position in the latest week. Far below a normal week;
 # a value under this means the data is broken, not just quiet.
 MIN_RANKED = {"QB": 8, "RB": 8, "WR": 8, "TE": 4, "K": 8}
+
+# How long after kickoff we still accept "no result yet" in our own copy of the schedule.
+# A game is over about 3.5 hours after kickoff and nflverse republishes within hours, so a
+# game still unfinished in our data two days later means the ingest has stopped bringing in
+# results. It does not mean the game ran long.
+STALE_AFTER_HOURS = 48.0
+
+# stg_schedules.kickoff_et is a naive US-Eastern timestamp. Converting it properly would mean
+# depending on a timezone database (zoneinfo needs the tzdata package on Windows) to gain at
+# most one hour of precision against a 48-hour threshold. Instead use the larger of the two
+# Eastern offsets, which makes every game look up to an hour *more recent* than it really was.
+# That can only ever delay a staleness complaint, never invent one.
+EASTERN_TO_UTC_HOURS = 5
 
 KICKER_SCORING = (
     "Field goals: 3 points under 40 yards, 4 for 40-49, 5 for 50+. Extra point: 1. "
@@ -218,6 +231,103 @@ def _movers(week_rows: list[dict], season: int, week: int) -> MoversFile:
     )
 
 
+def _kickoff_utc(kickoff_et: datetime | None, game_date: date | None) -> datetime | None:
+    """When a game started, in UTC, erring on the side of "more recently than that".
+
+    Falls back to the game date when the parsed kickoff is missing, so a game with an
+    unreadable time is still checked rather than quietly skipped. End of day is used for that
+    fallback for the same reason as the fixed offset above: it can only make the game look
+    more recent, so it never manufactures a staleness complaint.
+    """
+    if kickoff_et is not None:
+        return kickoff_et.replace(tzinfo=timezone.utc) + timedelta(hours=EASTERN_TO_UTC_HOURS)
+    if game_date is not None:
+        return datetime(
+            game_date.year, game_date.month, game_date.day, 23, 59, tzinfo=timezone.utc
+        ) + timedelta(hours=EASTERN_TO_UTC_HOURS)
+    return None
+
+
+def _freshness_problems(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    season: int,
+    latest_ranked_week: int,
+    now: datetime,
+    stale_after_hours: float = STALE_AFTER_HOURS,
+) -> list[str]:
+    """Refuse to republish yesterday's numbers as though they were today's.
+
+    The ingest skips any file whose source has not changed, which is what keeps the daily run
+    cheap. The failure mode is that a stalled or broken source looks exactly like a quiet week:
+    every step reports success, the gate sees a complete and internally consistent set of
+    files, and last week's rankings go out as current. Nothing errors.
+
+    Two independent checks, because the two break differently and either can happen alone:
+
+    A. **Our copy of reality is behind reality.** A regular-season game kicked off long enough
+       ago that it must be over, and our schedule still records no result for it.
+    B. **The rankings are behind our copy.** A week has had a settled result for long enough
+       that it should have been ranked, and the rankings do not reach it. That points at dbt or
+       the publish lagging the raw data rather than at the ingest.
+
+    The same threshold drives both, which also absorbs the ordinary case of nflverse publishing
+    a schedule result before the weekly player stats that go with it.
+    """
+    reference = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+    cutoff = reference - timedelta(hours=stale_after_hours)
+    try:
+        games = _rows(
+            connection,
+            """
+            select week, is_final, kickoff_et, game_date
+            from stg_schedules
+            where season = ? and game_type = 'REG'
+            """,
+            [season],
+        )
+    except duckdb.Error as error:
+        # A check that cannot run must not pass quietly.
+        return [f"could not read stg_schedules to check data freshness: {error}"]
+    if not games:
+        return [f"stg_schedules has no regular-season games for season {season}"]
+
+    started = {id(g): _kickoff_utc(g["kickoff_et"], g["game_date"]) for g in games}
+    undated = [g for g in games if started[id(g)] is None]
+    overdue = [
+        g
+        for g in games
+        if not g["is_final"] and started[id(g)] is not None and started[id(g)] < cutoff
+    ]
+    settled = [
+        g for g in games if g["is_final"] and started[id(g)] is not None and started[id(g)] < cutoff
+    ]
+
+    problems: list[str] = []
+    if undated:
+        problems.append(
+            f"{len(undated)} regular-season game(s) in season {season} have neither a kickoff "
+            "time nor a date, so their freshness cannot be checked"
+        )
+    if overdue:
+        earliest = min(overdue, key=lambda g: (g["week"], str(g["game_date"])))
+        problems.append(
+            f"{len(overdue)} regular-season game(s) kicked off more than {stale_after_hours:g}h "
+            f"ago and still have no result in stg_schedules (earliest: week {earliest['week']}, "
+            f"{earliest['game_date']}). The raw data has stopped updating, so publishing now "
+            "would serve stale rankings as current."
+        )
+    if settled:
+        newest_settled_week = max(g["week"] for g in settled)
+        if latest_ranked_week < newest_settled_week:
+            problems.append(
+                f"week {newest_settled_week} has had a final result for more than "
+                f"{stale_after_hours:g}h but the rankings stop at week {latest_ranked_week}; "
+                "the rankings are behind the raw data"
+            )
+    return problems
+
+
 def _check_rankings(file: RankingsFile) -> list[str]:
     """Validation gate for one rankings file. Returns a list of problems (empty means OK)."""
     where = f"rankings {file.season} week {file.week} {file.position}"
@@ -377,6 +487,10 @@ def build_files(
         files[f"{prefix}/methodology.json"] = _json(_methodology(connection, storage))
     except duckdb.Error as error:
         problems.append(f"could not read the ranking settings: {error}")
+
+    problems.extend(
+        _freshness_problems(connection, season=season, latest_ranked_week=latest_week, now=now)
+    )
 
     if problems:
         raise PublishError(
