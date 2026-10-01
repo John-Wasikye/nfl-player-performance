@@ -39,6 +39,13 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
 - Python 3.10+ locally, 3.12 in Docker. Keep code compatible with 3.10.
 - Write tests alongside every change. No network in tests: use the fakes in `pipeline/tests/conftest.py`.
 - Raw files are immutable dated snapshots; cleaning happens in dbt. dbt reads the newest snapshot only.
+- **Storage layout is decided: read `docs/storage-design.md` before moving any file or changing
+  `config.py`/`storage.py`/`profiles.yml`.** In short: the warehouse is derived, so it is rebuilt from
+  raw every run and never read back, but the finished copy is published to S3 as a read-only snapshot
+  so `backtest` and `experiment` can run as on-demand AWS tasks without rebuilding. dbt reads raw
+  straight from S3 via `RAW_ROOT`. Locked predictions and the ledger are records, kept write-once with
+  S3 conditional writes plus Object Lock (governance mode), and mirrored into git by a scheduled action.
+  Only the weekly Claude analyst session stays on the laptop, to keep it inside the Pro plan.
 - nflverse's weekly stats file is `stats_player_week_<season>` (the `regpost` file is season totals, no week).
 - Ranking rules: minimum role scales with games the team has played; kickers get standard fantasy scoring
   because nflverse does not score them; rankings are "as of week N" with no lookahead (there is a test).
