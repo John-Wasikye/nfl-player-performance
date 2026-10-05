@@ -291,7 +291,7 @@ test.describe("About page author section", () => {
     await expect(section.getByRole("heading", { name: "Built by John Wasikye" })).toBeVisible();
     await expect(section.getByRole("link", { name: /See my other projects/ })).toHaveAttribute(
       "href",
-      /^https:\/\/github\.com\//,
+      "https://www.johnwasikye.com",
     );
     await expect(section.getByRole("link", { name: /nfl-player-performance on GitHub/ })).toBeVisible();
   });
@@ -359,5 +359,43 @@ test.describe("Freshness", () => {
     await page.goto("/");
 
     await expect(page.getByText(/were last updated 3 days ago/)).toBeVisible();
+  });
+
+  // Every publish that the gate refuses leaves the old files live, so the banner is the only thing
+  // telling a visitor the numbers are old. It has to follow meta.json's generated_at, on any page,
+  // and flip at the 36 hour line rather than at some nearby number.
+  const ageMeta = (page: Page, hours: number) =>
+    page.route("**/data/v1/meta.json", async (route) => {
+      const response = await route.fetch();
+      const meta = await response.json();
+      meta.generated_at = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+      await route.fulfill({ response, json: meta });
+    });
+
+  test("stays quiet at 35 hours and appears at 37, on a page other than the home page", async ({ page }) => {
+    await ageMeta(page, 35);
+    await page.goto("/rankings/QB/");
+    await expect(page.getByRole("heading", { level: 1, name: "Quarterbacks" })).toBeVisible();
+    await expect(page.getByText(/were last updated/)).toHaveCount(0);
+
+    await page.unroute("**/data/v1/meta.json");
+    await ageMeta(page, 37);
+    await page.goto("/rankings/QB/");
+    await expect(page.getByText(/were last updated/)).toBeVisible();
+  });
+
+  test("follows generated_at, not data_as_of", async ({ page }) => {
+    await page.route("**/data/v1/meta.json", async (route) => {
+      const response = await route.fetch();
+      const meta = await response.json();
+      meta.generated_at = new Date().toISOString();
+      const old = new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString();
+      meta.data_as_of = Object.fromEntries(Object.keys(meta.data_as_of).map((name) => [name, old]));
+      await route.fulfill({ response, json: meta });
+    });
+    await page.goto("/");
+    await expect(page.getByText(/2026 season/)).toBeVisible();
+
+    await expect(page.getByText(/were last updated/)).toHaveCount(0);
   });
 });

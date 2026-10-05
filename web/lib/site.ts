@@ -11,8 +11,8 @@ export const AUTHOR = {
   email: "john.wasikye@gmail.com",
   github: "https://github.com/John-Wasikye",
   repo: "https://github.com/John-Wasikye/nfl-player-performance",
-  // Set this to the address of the site that lists your other projects, once it is live.
-  projectsSite: "",
+  // The site that lists your other projects.
+  projectsSite: "https://www.johnwasikye.com",
 };
 
 /** Where "my other projects" points: the projects site if it is set, otherwise GitHub. */
