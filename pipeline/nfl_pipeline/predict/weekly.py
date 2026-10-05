@@ -6,8 +6,9 @@ Without the lock, nothing stops a later pipeline run from quietly regenerating l
 predictions with a better model and reporting the improved number as if it had been made in
 advance, and the Report card would measure nothing at all.
 
-So `lock_week` refuses to overwrite. If the stored file disagrees with what is being written, that
-is an error to investigate, not something to paper over.
+So `lock_week` refuses to overwrite, using the storage's conditional write so that two runs racing
+for the same week cannot both succeed. If the stored file disagrees with what is being written,
+that is an error to investigate, not something to paper over.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,7 @@ from nfl_pipeline.contract import GradedWeek
 from nfl_pipeline.predict.availability import AvailabilityModel
 from nfl_pipeline.predict.backtest import _split_for_calibration
 from nfl_pipeline.predict.models import PredictionModel, baseline_predictions
+from nfl_pipeline.storage import Storage
 
 logger = logging.getLogger("nfl_pipeline.predict.weekly")
 
@@ -140,18 +141,18 @@ def predict_week(
     )
 
 
-def lock_path(root: Path, season: int, week: int) -> Path:
-    return Path(root) / str(season) / f"week_{week:02d}.json"
+def lock_key(season: int, week: int) -> str:
+    return f"{season}/week_{week:02d}.json"
 
 
-def lock_week(predictions: WeeklyPredictions, root: Path) -> WeeklyPredictions:
+def lock_week(predictions: WeeklyPredictions, records: Storage) -> WeeklyPredictions:
     """Write the week's projections once, before kickoff, and never again.
 
     Re-locking with identical numbers is allowed because pipeline runs are retried; re-locking with
     different numbers raises, because that is either a bug or the report card being rewritten after
     the fact, and both need a human.
     """
-    path = lock_path(root, predictions.season, predictions.week)
+    key = lock_key(predictions.season, predictions.week)
     locked = WeeklyPredictions(
         season=predictions.season,
         week=predictions.week,
@@ -160,22 +161,25 @@ def lock_week(predictions: WeeklyPredictions, root: Path) -> WeeklyPredictions:
         rows=predictions.rows,
         locked_at=_now(),
     )
-    if path.exists():
-        existing = WeeklyPredictions.from_json(json.loads(path.read_text("utf-8")))
-        if _same_numbers(existing.rows, locked.rows):
-            logger.info("week %s already locked, numbers unchanged", predictions.week)
-            return existing
-        raise ValueError(
-            f"{path} is already locked with different projections. A locked week cannot be "
-            "rewritten; if the earlier lock was wrong, delete it deliberately and say so in the "
-            "ledger."
+    payload = json.dumps(locked.to_json(), indent=2).encode("utf-8")
+    if records.put_bytes_if_absent(key, payload):
+        logger.info(
+            "locked %d projections for %s week %s", len(locked.rows), locked.season, locked.week
         )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(locked.to_json(), indent=2), encoding="utf-8")
-    logger.info(
-        "locked %d projections for %s week %s", len(locked.rows), locked.season, locked.week
+        return locked
+
+    # The key was already taken, either by an earlier run or by one that finished a moment ago.
+    existing = load_locked(records, predictions.season, predictions.week)
+    if existing is None:
+        raise RuntimeError(f"{key} was reported as present but could not be read back")
+    if _same_numbers(existing.rows, locked.rows):
+        logger.info("week %s already locked, numbers unchanged", predictions.week)
+        return existing
+    raise ValueError(
+        f"{key} is already locked with different projections. A locked week cannot be "
+        "rewritten; if the earlier lock was wrong, delete it deliberately and say so in the "
+        "ledger."
     )
-    return locked
 
 
 def _same_numbers(left: pd.DataFrame, right: pd.DataFrame) -> bool:
@@ -185,11 +189,11 @@ def _same_numbers(left: pd.DataFrame, right: pd.DataFrame) -> bool:
     return a.equals(b)
 
 
-def load_locked(root: Path, season: int, week: int) -> WeeklyPredictions | None:
-    path = lock_path(root, season, week)
-    if not path.exists():
+def load_locked(records: Storage, season: int, week: int) -> WeeklyPredictions | None:
+    raw = records.get_bytes(lock_key(season, week))
+    if raw is None:
         return None
-    return WeeklyPredictions.from_json(json.loads(path.read_text("utf-8")))
+    return WeeklyPredictions.from_json(json.loads(raw.decode("utf-8")))
 
 
 def grade_week(

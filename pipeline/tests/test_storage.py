@@ -1,4 +1,6 @@
 import io
+import tempfile
+from pathlib import Path
 
 import pytest
 from botocore.exceptions import ClientError
@@ -35,11 +37,27 @@ def test_local_rejects_keys_that_escape_the_root(tmp_path, key):
 
 
 class FakeS3Client:
+    """Behaves like S3 where the project depends on it: conditional writes and paged listings."""
+
+    page_size = 2  # small on purpose, so pagination is exercised by every listing test
+
     def __init__(self):
         self.objects: dict[tuple[str, str], bytes] = {}
 
-    def put_object(self, Bucket, Key, Body):
+    def put_object(self, Bucket, Key, Body, IfNoneMatch=None):
+        if IfNoneMatch == "*" and (Bucket, Key) in self.objects:
+            raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
         self.objects[(Bucket, Key)] = Body
+
+    def list_objects_v2(self, Bucket, Prefix="", ContinuationToken=None):
+        keys = sorted(k for b, k in self.objects if b == Bucket and k.startswith(Prefix))
+        start = int(ContinuationToken) if ContinuationToken else 0
+        page = keys[start : start + self.page_size]
+        more = start + self.page_size < len(keys)
+        response = {"Contents": [{"Key": key} for key in page], "IsTruncated": more}
+        if more:
+            response["NextContinuationToken"] = str(start + self.page_size)
+        return response
 
     def get_object(self, Bucket, Key):
         if (Bucket, Key) not in self.objects:
@@ -95,3 +113,92 @@ def test_settings_read_s3_configuration_from_env():
 def test_unknown_storage_backend_is_rejected():
     with pytest.raises(ValueError, match="unknown STORAGE_BACKEND"):
         build_storage(Settings(storage_backend="ftp"))
+
+
+# The write-once contract. Every backend is held to the same assertions, because the locked
+# predictions are only worth anything if a second write really is refused. A fake that quietly
+# overwrote would make the whole design look sound while proving nothing.
+
+
+def check_write_once_contract(storage) -> None:
+    assert storage.put_bytes_if_absent("locks/2026/week_01.json", b"first") is True
+    assert storage.put_bytes_if_absent("locks/2026/week_01.json", b"second") is False
+    assert storage.get_bytes("locks/2026/week_01.json") == b"first"
+
+    # Identical bytes are refused too: the caller decides whether that is a harmless retry.
+    assert storage.put_bytes_if_absent("locks/2026/week_01.json", b"first") is False
+
+    assert storage.put_bytes_if_absent("locks/2026/week_02.json", b"other") is True
+
+
+def check_listing_contract(storage) -> None:
+    for key in ["locks/2026/week_03.json", "locks/2026/week_01.json", "locks/2025/week_18.json"]:
+        storage.put_bytes(key, b"x")
+    storage.put_bytes("ledger.json", b"x")
+    storage.put_bytes("locks/2026/week_02.json", b"x")
+    storage.put_bytes("locks/2026/week_04.json", b"x")
+
+    assert storage.list_keys("locks/2026/") == [
+        "locks/2026/week_01.json",
+        "locks/2026/week_02.json",
+        "locks/2026/week_03.json",
+        "locks/2026/week_04.json",
+    ]
+    assert storage.list_keys("locks/") == sorted(storage.list_keys("locks/"))
+    assert len(storage.list_keys("locks/")) == 5
+    assert storage.list_keys("nothing/here/") == []
+
+
+@pytest.fixture(params=["local", "s3"])
+def backend(request, tmp_path):
+    if request.param == "local":
+        return LocalStorage(tmp_path)
+    return S3Storage("records", client=FakeS3Client())
+
+
+def test_every_backend_refuses_a_second_write(backend):
+    check_write_once_contract(backend)
+
+
+def test_every_backend_lists_what_was_written_in_order(backend):
+    check_listing_contract(backend)
+
+
+def test_a_failed_conditional_write_leaves_no_temp_file_behind(tmp_path):
+    storage = LocalStorage(tmp_path)
+    storage.put_bytes_if_absent("a.json", b"one")
+    storage.put_bytes_if_absent("a.json", b"two")
+
+    assert [path.name for path in tmp_path.iterdir()] == ["a.json"]
+
+
+def test_s3_conditional_write_is_sent_with_if_none_match():
+    seen = {}
+
+    class Recording(FakeS3Client):
+        def put_object(self, **arguments):
+            seen.update(arguments)
+            super().put_object(**arguments)
+
+    S3Storage("records", client=Recording()).put_bytes_if_absent("k", b"v")
+
+    assert seen["IfNoneMatch"] == "*"
+
+
+def test_s3_conditional_write_raises_on_errors_other_than_already_exists():
+    class Denied(FakeS3Client):
+        def put_object(self, **arguments):
+            raise ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+
+    with pytest.raises(ClientError):
+        S3Storage("records", client=Denied()).put_bytes_if_absent("k", b"v")
+
+
+def test_the_contract_actually_catches_a_backend_that_overwrites():
+    class Overwrites(LocalStorage):
+        def put_bytes_if_absent(self, key, data):
+            self.put_bytes(key, data)
+            return True
+
+    with pytest.raises(AssertionError):
+        check_write_once_contract(Overwrites(Path(tempfile.mkdtemp())))

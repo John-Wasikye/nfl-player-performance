@@ -15,27 +15,32 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 from nfl_pipeline.contract import LedgerEntry
+from nfl_pipeline.storage import Storage
 
 logger = logging.getLogger("nfl_pipeline.predict.ledger")
+
+LEDGER_KEY = "ledger.json"
 
 
 @dataclass
 class Ledger:
     """Every graded experiment, oldest first."""
 
-    path: Path
+    records: Storage
     entries: list[LedgerEntry]
+    key: str = LEDGER_KEY
 
     @classmethod
-    def load(cls, path: Path) -> Ledger:
-        path = Path(path)
-        if not path.exists():
-            return cls(path=path, entries=[])
-        payload = json.loads(path.read_text("utf-8"))
-        return cls(path=path, entries=[LedgerEntry(**row) for row in payload["entries"]])
+    def load(cls, records: Storage, key: str = LEDGER_KEY) -> Ledger:
+        raw = records.get_bytes(key)
+        if raw is None:
+            return cls(records=records, entries=[], key=key)
+        payload = json.loads(raw.decode("utf-8"))
+        return cls(
+            records=records, entries=[LedgerEntry(**row) for row in payload["entries"]], key=key
+        )
 
     def record(
         self,
@@ -79,11 +84,8 @@ class Ledger:
         return entry
 
     def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(
-            json.dumps({"entries": [e.model_dump() for e in self.entries]}, indent=2),
-            encoding="utf-8",
-        )
+        payload = json.dumps({"entries": [e.model_dump() for e in self.entries]}, indent=2)
+        self.records.put_bytes(self.key, payload.encode("utf-8"))
 
     @property
     def promoted(self) -> list[LedgerEntry]:

@@ -8,6 +8,7 @@ import pytest
 
 from nfl_pipeline.predict.experiment import ExperimentError, list_candidates, run_candidate
 from nfl_pipeline.predict.proposals import REGISTRY
+from nfl_pipeline.storage import LocalStorage
 
 
 def test_every_registered_candidate_states_a_hypothesis():
@@ -25,7 +26,7 @@ def test_an_unknown_candidate_is_refused_by_name(tmp_path):
     with pytest.raises(ExperimentError, match="no candidate named"):
         run_candidate(
             tmp_path / "warehouse.duckdb",
-            tmp_path / "ledger.json",
+            LocalStorage(tmp_path),
             "not_a_real_candidate",
             datetime.now(timezone.utc),
         )
@@ -94,7 +95,7 @@ def test_a_candidate_cannot_be_recorded_twice_on_the_same_day(tmp_path, monkeypa
     """The entry id is the date plus the name, and the ledger refuses a repeat."""
     from nfl_pipeline.predict.ledger import Ledger
 
-    ledger = Ledger.load(tmp_path / "ledger.json")
+    ledger = Ledger.load(LocalStorage(tmp_path))
     ledger.record(
         "2026-09-19-form_versus_baseline",
         "h",
@@ -109,7 +110,7 @@ def test_a_candidate_cannot_be_recorded_twice_on_the_same_day(tmp_path, monkeypa
     )
     ledger.save()
 
-    reloaded = Ledger.load(tmp_path / "ledger.json")
+    reloaded = Ledger.load(LocalStorage(tmp_path))
     with pytest.raises(ValueError, match="already in the ledger"):
         reloaded.record(
             "2026-09-19-form_versus_baseline",

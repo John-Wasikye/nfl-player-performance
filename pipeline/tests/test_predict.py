@@ -21,6 +21,7 @@ from nfl_pipeline.predict.availability import (
 )
 from nfl_pipeline.predict.features import FEATURE_COLUMNS, model_columns
 from nfl_pipeline.predict.models import MIN_PRIOR_GAMES, PredictionModel, baseline_predictions
+from nfl_pipeline.storage import LocalStorage
 
 POSITIONS = ["QB", "RB", "WR", "TE", "K"]
 
@@ -408,14 +409,14 @@ def test_a_more_accurate_challenger_with_dishonest_ranges_is_rejected():
 
 @pytest.fixture
 def weekly(tmp_path):
-    """A projected week for 2024 week 18, plus a scratch directory to lock it into."""
+    """A projected week for 2024 week 18, plus a scratch store to lock it into."""
     from nfl_pipeline.predict.weekly import predict_week
 
     features = walkable_frame()
     # The week being projected has no outcome yet, which is the situation that matters.
     future = (features.season == 2024) & (features.week == 18)
     features.loc[future, "actual_ppr"] = np.nan
-    return predict_week(features, season=2024, week=18), features, tmp_path
+    return predict_week(features, season=2024, week=18), features, LocalStorage(tmp_path)
 
 
 def test_a_week_that_has_not_been_played_can_still_be_projected(weekly):
@@ -463,6 +464,46 @@ def test_a_locked_week_cannot_be_quietly_rewritten(weekly):
 
     with pytest.raises(ValueError, match="already locked"):
         lock_week(improved, root)
+
+
+def test_locking_never_uses_a_plain_overwriting_write(weekly):
+    """The week is created with the conditional write, or two racing runs could both lock it."""
+    from nfl_pipeline.predict.weekly import lock_week
+
+    predictions, _, root = weekly
+    calls = []
+
+    class Recording(LocalStorage):
+        def put_bytes(self, key, data):
+            calls.append(("put_bytes", key))
+            super().put_bytes(key, data)
+
+        def put_bytes_if_absent(self, key, data):
+            calls.append(("put_bytes_if_absent", key))
+            return super().put_bytes_if_absent(key, data)
+
+    store = Recording(root._root)
+    lock_week(predictions, store)
+    lock_week(predictions, store)
+
+    assert {name for name, _ in calls} == {"put_bytes_if_absent"}
+
+
+def test_a_week_locked_in_object_storage_cannot_be_rewritten_either(weekly):
+    from nfl_pipeline.predict.weekly import load_locked, lock_week
+    from nfl_pipeline.storage import S3Storage
+    from tests.test_storage import FakeS3Client
+
+    predictions, _, _ = weekly
+    store = S3Storage("records", client=FakeS3Client())
+    locked = lock_week(predictions, store)
+    improved = copy.deepcopy(predictions)
+    improved.rows["points"] = improved.rows["points"] + 1.0
+
+    with pytest.raises(ValueError, match="already locked"):
+        lock_week(improved, store)
+
+    assert load_locked(store, 2024, 18).locked_at == locked.locked_at
 
 
 def test_locked_predictions_survive_a_round_trip_to_disk(weekly):

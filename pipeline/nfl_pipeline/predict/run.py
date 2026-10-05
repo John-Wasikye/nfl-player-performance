@@ -15,7 +15,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from nfl_pipeline.config import Settings
+from nfl_pipeline.config import Settings, build_records_storage
 from nfl_pipeline.contract import (
     SCHEMA_VERSION,
     AccuracyFile,
@@ -33,9 +33,9 @@ from nfl_pipeline.storage import Storage
 
 logger = logging.getLogger("nfl_pipeline.predict.run")
 
-PREDICTION_PREFIX = "published/v1/predictions"
-ACCURACY_PREFIX = "published/v1/accuracy"
-LEDGER_KEY = "published/v1/ledger.json"
+PREDICTION_PREFIX = "data/v1/predictions"
+ACCURACY_PREFIX = "data/v1/accuracy"
+LEDGER_KEY = "data/v1/ledger.json"
 
 
 class PredictionError(Exception):
@@ -170,13 +170,11 @@ def publish_predictions(
     return written
 
 
-def grade_finished_weeks(
-    features: pd.DataFrame, predictions_dir: Path, season: int
-) -> list[GradedWeek]:
+def grade_finished_weeks(features: pd.DataFrame, records: Storage, season: int) -> list[GradedWeek]:
     """Grade every locked week that now has results, reading each one back from disk."""
     graded: list[GradedWeek] = []
     for week in sorted(features[features.season == season].week.unique()):
-        locked = load_locked(predictions_dir, season, int(week))
+        locked = load_locked(records, season, int(week))
         if locked is None or locked.locked_at is None:
             continue
         result = grade_week(locked, features)
@@ -189,6 +187,7 @@ def run_predictions(
     settings: Settings,
     storage: Storage,
     *,
+    records: Storage | None = None,
     now: datetime,
     season: int | None = None,
     week: int | None = None,
@@ -205,10 +204,10 @@ def run_predictions(
         raise PredictionError("the feature store is empty")
 
     season = season or int(features.season.max())
-    predictions_dir = Path(settings.predictions_dir)
+    records = records if records is not None else build_records_storage(settings)
 
     # Grade first, from the locked files, before anything new is written.
-    graded = grade_finished_weeks(features, predictions_dir, season)
+    graded = grade_finished_weeks(features, records, season)
     summary = PredictionSummary(
         season=season,
         predicted_week=None,
@@ -226,7 +225,7 @@ def run_predictions(
         except ValueError as error:
             raise PredictionError(f"could not project {season} week {target}: {error}") from error
         if lock:
-            predictions = lock_week(predictions, predictions_dir)
+            predictions = lock_week(predictions, records)
         published = _to_published(
             predictions.rows,
             features,
@@ -250,7 +249,7 @@ def run_predictions(
     _write(storage, f"{ACCURACY_PREFIX}/{season}.json", accuracy)
     summary.files_written += 1
 
-    ledger = Ledger.load(Path(settings.ledger_path))
+    ledger = Ledger.load(records, settings.ledger_key)
     _write(
         storage,
         LEDGER_KEY,

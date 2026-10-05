@@ -19,8 +19,9 @@ from nfl_pipeline.predict.analyze import analyze_week, eligible_for_report
 from nfl_pipeline.predict.backtest import walk_forward
 from nfl_pipeline.predict.candidates import evaluate
 from nfl_pipeline.predict.features import load_features
-from nfl_pipeline.predict.ledger import Ledger
+from nfl_pipeline.predict.ledger import LEDGER_KEY, Ledger
 from nfl_pipeline.predict.proposals import REGISTRY
+from nfl_pipeline.storage import Storage
 
 logger = logging.getLogger("nfl_pipeline.predict.experiment")
 
@@ -106,7 +107,9 @@ def write_report(warehouse: Path, destination: Path) -> ReportResult:
     )
 
 
-def run_candidate(warehouse: Path, ledger_path: Path, name: str, now: datetime) -> RunResult:
+def run_candidate(
+    warehouse: Path, records: Storage, name: str, now: datetime, ledger_key: str = LEDGER_KEY
+) -> RunResult:
     """Put one candidate through the gate and record whatever it says."""
     candidate = REGISTRY.get(name)
     if candidate is None:
@@ -120,7 +123,7 @@ def run_candidate(warehouse: Path, ledger_path: Path, name: str, now: datetime) 
         # produced either way would be worse than no number at all.
         raise ExperimentError(f"candidate refused: {error}") from error
 
-    ledger = Ledger.load(ledger_path)
+    ledger = Ledger.load(records, ledger_key)
     entry_id = f"{now:%Y-%m-%d}-{candidate.name}"
     try:
         ledger.record(
