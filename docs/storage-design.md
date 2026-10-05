@@ -159,6 +159,8 @@ One bucket per lifecycle, because the policies genuinely differ:
 
 All four get S3 Block Public Access; CloudFront OAC is the only reader of `nfl-site`.
 
+**Encryption:** SSE-S3, which is free. KMS is optional: a customer-managed key costs $1 a month plus $0.03 per 10,000 requests (the first 20,000 a month are free), per the KMS pricing page checked 2026-10-05. The only bucket where it earns its place is `nfl-records`, because key use shows in CloudTrail. Adding it there is about $1 a month; adding it everywhere is about $4 and not worth it. See the build plan, section 13, "Encryption and KMS".
+
 **Built 2026-10-05.** Publishing uses the `data/v1/` prefix, and `build_site_storage()` returns the site bucket on S3 or `<data>/site` locally, so the key layout is identical in both places (locally the files land in `data/site/data/v1/`, which `web/scripts/sync-data.mjs` reads). `snapshot.py` uploads the warehouse to `nfl-raw/warehouse/warehouse.duckdb` after each build; `dbt/profiles.yml` has `aws` (credential chain) and `minio` targets, chosen by `dbt_target()`. The `aws` target is **untested against real S3** until the account exists: on a machine with no AWS credentials it fails at connection, which is the right way to fail.
 
 **Publishing moves to the `data/v1/` prefix of the site bucket**, replacing `published/v1`. The
