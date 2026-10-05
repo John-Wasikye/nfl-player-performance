@@ -23,7 +23,7 @@ nfl-pipeline run            # ingest -> dbt build (models + 116 tests) -> valida
    percentile-scored within the position) and season-to-date fantasy points. Each week is a snapshot, so
    rank movement is available. Players below a minimum role are listed but not ranked.
 4. **Publish** validates everything against a schema, then writes versioned JSON to
-   `data/published/v1/` (`meta.json` last). If validation fails, nothing is published.
+   `data/site/data/v1/` (`meta.json` last). If validation fails, nothing is published.
 
 Rankings only use games through the week being ranked, so there is no lookahead.
 

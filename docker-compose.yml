@@ -52,7 +52,8 @@ services:
     # Usage: docker compose run --rm pipeline ingest --datasets schedules
 
   # The full pipeline (ingest, dbt build with tests, publish) using local files in ./data.
-  # dbt reads raw files from disk for now; reading from S3 arrives with the AWS phase.
+  # dbt reads raw files from disk here. Against S3 or MinIO, `run` points dbt at the bucket instead
+  # (the `aws` and `minio` targets in dbt/profiles.yml).
   pipeline-local:
     build: .
     environment:

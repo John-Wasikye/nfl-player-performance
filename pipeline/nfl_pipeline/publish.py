@@ -43,7 +43,7 @@ from nfl_pipeline.storage import Storage
 
 logger = logging.getLogger("nfl_pipeline.publish")
 
-DEFAULT_PREFIX = "published/v1"
+DEFAULT_PREFIX = "data/v1"
 BACKTEST_KEY = "backtest/summary.json"
 MOVERS_PER_POSITION = 5
 

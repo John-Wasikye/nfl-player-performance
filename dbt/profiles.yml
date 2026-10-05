@@ -1,4 +1,12 @@
 # Run dbt from the repository root:  dbt build --project-dir dbt --profiles-dir dbt
+#
+# dev    local files (the default).
+# aws    raw read straight from S3. No access keys anywhere: DuckDB's credential chain finds the
+#        Fargate task role (or your SSO session when run from a laptop).
+# minio  the local S3 stand-in from docker compose, which needs an explicit endpoint and keys.
+#
+# `nfl-pipeline run` picks the target from STORAGE_BACKEND and S3_ENDPOINT_URL, so these are rarely
+# chosen by hand.
 nfl:
   target: dev
   outputs:
@@ -6,3 +14,29 @@ nfl:
       type: duckdb
       path: "{{ env_var('WAREHOUSE_PATH', 'data/warehouse.duckdb') }}"
       threads: 4
+
+    aws:
+      type: duckdb
+      path: "{{ env_var('WAREHOUSE_PATH', 'data/warehouse.duckdb') }}"
+      threads: 4
+      extensions:
+        - httpfs
+      secrets:
+        - type: s3
+          provider: credential_chain
+          region: "{{ env_var('AWS_REGION', 'us-east-1') }}"
+
+    minio:
+      type: duckdb
+      path: "{{ env_var('WAREHOUSE_PATH', 'data/warehouse.duckdb') }}"
+      threads: 4
+      extensions:
+        - httpfs
+      secrets:
+        - type: s3
+          key_id: "{{ env_var('AWS_ACCESS_KEY_ID', 'minioadmin') }}"
+          secret: "{{ env_var('AWS_SECRET_ACCESS_KEY', 'minioadmin') }}"
+          region: us-east-1
+          endpoint: "{{ env_var('S3_ENDPOINT_URL', 'http://minio:9000') | replace('http://', '') | replace('https://', '') }}"
+          url_style: path
+          use_ssl: false

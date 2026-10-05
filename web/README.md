@@ -14,7 +14,7 @@ You need the published data first. From the repo root, run the pipeline once (`n
 ```bash
 cd web
 npm install
-npm run dev          # copies ../data/published/v1 into public/data, then starts http://localhost:3000
+npm run dev          # copies ../data/site/data/v1 into public/data, then starts http://localhost:3000
 ```
 
 | Command | What it does |

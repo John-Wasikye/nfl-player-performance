@@ -135,8 +135,11 @@ The protocol is `put_bytes` / `get_bytes`. Add:
   `list_objects_v2`; local uses `rglob`.
 
 Then `lock_path` / `lock_week` / `load_locked` and `Ledger` take a `Storage` and a key prefix instead
-of a `Path`. In `config.py`, `predictions_dir` and `ledger_path` become `predictions_prefix` and
-`ledger_key`; `warehouse_path` stays a local path, because decision 1 makes it ephemeral on purpose.
+of a `Path`. **Built 2026-10-05, with one change from this plan:** the records get a bucket of their own,
+so there is no `predictions_prefix`. `config.py` has `s3_records_bucket` and `ledger_key`, and
+`build_records_storage()` returns a `LocalStorage` rooted at `<data>/predictions` locally (the same on-disk
+layout as before: `<season>/week_NN.json` and `ledger.json`) or an `S3Storage` on the records bucket.
+`warehouse_path` stays a local path, because decision 1 makes it ephemeral on purpose.
 
 Tests stay offline on the fakes in `pipeline/tests/conftest.py`, and gain a **shared contract test run
 against both backends**: a second write is refused, an identical rewrite reports already-present, and
@@ -155,6 +158,8 @@ One bucket per lifecycle, because the policies genuinely differ:
 | `nfl-tfstate` | Terraform state | versioned, encrypted, private, Terraform-native locking |
 
 All four get S3 Block Public Access; CloudFront OAC is the only reader of `nfl-site`.
+
+**Built 2026-10-05.** Publishing uses the `data/v1/` prefix, and `build_site_storage()` returns the site bucket on S3 or `<data>/site` locally, so the key layout is identical in both places (locally the files land in `data/site/data/v1/`, which `web/scripts/sync-data.mjs` reads). `snapshot.py` uploads the warehouse to `nfl-raw/warehouse/warehouse.duckdb` after each build; `dbt/profiles.yml` has `aws` (credential chain) and `minio` targets, chosen by `dbt_target()`. The `aws` target is **untested against real S3** until the account exists: on a machine with no AWS credentials it fails at connection, which is the right way to fail.
 
 **Publishing moves to the `data/v1/` prefix of the site bucket**, replacing `published/v1`. The
 website already fetches from `/data/v1`, so one bucket and one CloudFront origin serves both the HTML

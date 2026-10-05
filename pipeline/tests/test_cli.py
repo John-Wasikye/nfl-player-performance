@@ -156,15 +156,67 @@ def test_run_reports_a_failed_publish(fake_host, steps, capsys):
     assert "publish failed: validation failed" in capsys.readouterr().err
 
 
-def test_run_refuses_non_local_storage_for_now(fake_host, steps, capsys, monkeypatch):
+@pytest.fixture
+def aws_run(fake_host, steps, monkeypatch, tmp_path):
+    """`run` against S3-shaped storage, with dbt faked but still leaving a warehouse file behind."""
+    from test_storage import FakeS3Client
+
+    from nfl_pipeline.storage import S3Storage
+
     calls, _ = steps
+    warehouse = tmp_path / "warehouse.duckdb"
+    client = FakeS3Client()
     monkeypatch.setenv("STORAGE_BACKEND", "s3")
+    monkeypatch.setenv("WAREHOUSE_PATH", str(warehouse))
+    monkeypatch.setattr(cli, "build_storage", lambda _settings: S3Storage("raw", client=client))
+    monkeypatch.setattr(cli, "_run_ingest", lambda *_args: calls.append("ingest") or 0)
+
+    def fake_dbt(_settings):
+        calls.append("dbt")
+        warehouse.write_bytes(b"duckdb bytes")
+        return 0
+
+    monkeypatch.setattr(cli, "_run_dbt_build", fake_dbt)
+    return calls, client
+
+
+def test_run_on_aws_uploads_the_snapshot_between_the_build_and_the_publish(aws_run):
+    calls, client = aws_run
 
     code = cli.main(["run"])
 
-    assert code == 2
-    assert calls == []
-    assert "STORAGE_BACKEND=local" in capsys.readouterr().err
+    assert code == 0
+    assert calls == ["ingest", "dbt", "publish"]
+    assert client.objects[("raw", "warehouse/warehouse.duckdb")] == b"duckdb bytes"
+
+
+def test_a_failed_snapshot_upload_still_publishes_but_does_not_exit_zero(
+    aws_run, monkeypatch, capsys, caplog
+):
+    calls, _ = aws_run
+
+    def broken(*_args):
+        raise cli.SnapshotError("could not upload the warehouse snapshot: denied")
+
+    monkeypatch.setattr(cli, "publish_snapshot", broken)
+
+    code = cli.main(["run"])
+
+    assert code == 1
+    assert calls[-1] == "publish"
+    assert "snapshot upload failed" in capsys.readouterr().err
+
+
+def test_dbt_reads_the_bucket_directly_on_aws():
+    from nfl_pipeline.config import Settings, dbt_raw_root, dbt_target
+
+    local = Settings()
+    aws = Settings(storage_backend="s3", s3_bucket="jw-nfl-raw")
+    minio = Settings(storage_backend="s3", s3_endpoint_url="http://minio:9000")
+
+    assert dbt_raw_root(aws) == "s3://jw-nfl-raw/raw"
+    assert dbt_raw_root(local).endswith("raw")
+    assert (dbt_target(local), dbt_target(aws), dbt_target(minio)) == ("dev", "aws", "minio")
 
 
 def test_publish_command_reports_a_missing_warehouse(fake_host, capsys, monkeypatch, tmp_path):

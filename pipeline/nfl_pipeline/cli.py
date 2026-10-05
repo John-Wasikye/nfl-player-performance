@@ -24,7 +24,14 @@ import duckdb
 import httpx
 
 from nfl_pipeline.backtest import render_report, run_backtest
-from nfl_pipeline.config import Settings, build_storage
+from nfl_pipeline.config import (
+    Settings,
+    build_records_storage,
+    build_site_storage,
+    build_storage,
+    dbt_raw_root,
+    dbt_target,
+)
 from nfl_pipeline.datasets import DATASETS, resolve_files
 from nfl_pipeline.ingest import ingest
 from nfl_pipeline.predict.experiment import (
@@ -36,6 +43,7 @@ from nfl_pipeline.predict.experiment import (
 from nfl_pipeline.predict.run import PredictionError, run_predictions
 from nfl_pipeline.publish import PublishError, publish
 from nfl_pipeline.season import current_season, parse_seasons
+from nfl_pipeline.snapshot import SnapshotError, ensure_warehouse, publish_snapshot
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -131,7 +139,8 @@ def _run_dbt_build(settings: Settings) -> int:
     """Run `dbt build` (seeds, models, and data quality tests) against the local raw files."""
     env = {
         **os.environ,
-        "RAW_ROOT": str(settings.local_data_dir / "raw"),
+        "RAW_ROOT": dbt_raw_root(settings),
+        "S3_ENDPOINT_URL": settings.s3_endpoint_url or "",
         "WAREHOUSE_PATH": str(settings.warehouse_path),
     }
     command = [
@@ -143,13 +152,33 @@ def _run_dbt_build(settings: Settings) -> int:
         str(settings.dbt_dir),
         "--profiles-dir",
         str(settings.dbt_dir),
+        "--target",
+        dbt_target(settings),
     ]
     return subprocess.run(command, env=env).returncode
 
 
+def _have_warehouse(settings: Settings) -> bool:
+    """On AWS a task starts with an empty disk: use the snapshot, else rebuild from raw.
+
+    Locally the warehouse is whatever `run` last built, so nothing is fetched and a missing file is
+    reported by the command that needed it.
+    """
+    if settings.storage_backend == "local":
+        return True
+    return ensure_warehouse(
+        Path(settings.warehouse_path),
+        build_storage(settings),
+        lambda: _run_dbt_build(settings) == 0,
+    )
+
+
 def _run_publish(settings: Settings, now: datetime) -> int:
+    if not _have_warehouse(settings):
+        print("publish failed: no warehouse snapshot and the rebuild failed", file=sys.stderr)
+        return 1
     try:
-        summary = publish(settings.warehouse_path, build_storage(settings), now=now)
+        summary = publish(settings.warehouse_path, build_site_storage(settings), now=now)
     except PublishError as error:
         print(f"publish failed: {error}", file=sys.stderr)
         return 1
@@ -161,10 +190,14 @@ def _run_publish(settings: Settings, now: datetime) -> int:
 
 
 def _run_predict(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
+    if not _have_warehouse(settings):
+        print("predict failed: no warehouse snapshot and the rebuild failed", file=sys.stderr)
+        return 1
     try:
         summary = run_predictions(
             settings,
-            build_storage(settings),
+            build_site_storage(settings),
+            records=build_records_storage(settings),
             now=now,
             season=args.season,
             week=args.week,
@@ -198,10 +231,18 @@ def _run_experiment(args: argparse.Namespace, settings: Settings, now: datetime)
             print()
         return 0
 
+    if not _have_warehouse(settings):
+        print("experiment failed: no warehouse snapshot and the rebuild failed", file=sys.stderr)
+        return 1
+
     try:
         if args.run:
             result = run_candidate(
-                Path(settings.warehouse_path), Path(settings.ledger_path), args.run, now
+                Path(settings.warehouse_path),
+                build_records_storage(settings),
+                args.run,
+                now,
+                settings.ledger_key,
             )
             verdict = "PROMOTED" if result.promoted else "REJECTED"
             print(f"{result.name}: {verdict} - {result.reason}")
@@ -228,6 +269,9 @@ def _run_experiment(args: argparse.Namespace, settings: Settings, now: datetime)
 
 
 def _run_backtest(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
+    if not _have_warehouse(settings):
+        print("backtest failed: no warehouse snapshot and the rebuild failed", file=sys.stderr)
+        return 1
     try:
         summary = run_backtest(settings.warehouse_path, now=now)
     except (ValueError, OSError) as error:
@@ -270,12 +314,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_backtest(args, settings, now)
 
     # "run": each step must succeed before the next one starts, so bad data is never published.
-    if settings.storage_backend != "local":
-        print(
-            "error: `run` needs STORAGE_BACKEND=local for now (dbt reads S3 from phase 1C)",
-            file=sys.stderr,
-        )
-        return 2
     code = _run_ingest(args, settings, now)
     if code != 0:
         print("run stopped: the ingest failed", file=sys.stderr)
@@ -283,4 +321,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     if _run_dbt_build(settings) != 0:
         print("run stopped: dbt build failed, so nothing was published", file=sys.stderr)
         return 1
-    return _run_publish(settings, now)
+
+    # The snapshot is for the ad-hoc tasks, not for the site, so a failed upload must not hold back
+    # fresh rankings. It must not pass quietly either: publish first, then exit non-zero.
+    snapshot_failed = False
+    if settings.storage_backend != "local":
+        try:
+            publish_snapshot(Path(settings.warehouse_path), build_storage(settings))
+        except SnapshotError as error:
+            print(f"run: {error}", file=sys.stderr)
+            snapshot_failed = True
+    code = _run_publish(settings, now)
+    if code == 0 and snapshot_failed:
+        print("run finished, but the snapshot upload failed (see above)", file=sys.stderr)
+        return 1
+    return code

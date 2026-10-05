@@ -1,13 +1,13 @@
 // Builds a small, fixed copy of the published data for the end-to-end tests, so the tests do not
 // depend on whatever the latest pipeline run produced. Re-run it only to refresh the snapshot:
 //
-//   node scripts/make-fixtures.mjs            (reads ../data/published/v1)
+//   node scripts/make-fixtures.mjs            (reads ../data/site/data/v1)
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const source = resolve(root, process.env.DATA_SRC ?? "../data/published/v1");
+const source = resolve(root, process.env.DATA_SRC ?? "../data/site/data/v1");
 const target = resolve(root, "e2e/fixtures/v1");
 const RANKED_KEPT = 12;
 const UNRANKED_KEPT = 3;
