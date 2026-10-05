@@ -180,6 +180,10 @@ Everything else - the daily pipeline, the weekly predict/lock/grade, the backtes
 harness - runs in AWS. Website development and the test suites are development work and stay local by
 nature.
 
+### Later: moving the analyst session to AWS
+
+The owner intends to move it eventually. The researched route is Claude Code on Amazon Bedrock, authenticated by the Fargate task role, so no API key or secret is needed and the storage design above does not change: the task reads the warehouse snapshot and writes a proposed change to a pull request. It would cost about $1-3 a week on Sonnet or $2-6 on Opus, paid at API rates. Running it on the Pro subscription from AWS is not recommended, because Anthropic describes subscription login as for ordinary individual use. The write-up is in the build plan, section 19. Nothing here is built.
+
 ## What this does not decide
 
 - Whether `ranking_config.csv` stays at 70/30 (open decision, unrelated to storage).
