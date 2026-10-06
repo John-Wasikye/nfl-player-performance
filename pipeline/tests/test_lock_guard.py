@@ -21,15 +21,16 @@ SUNDAY_KICKOFF_UTC = datetime(2026, 10, 11, 17, 0, tzinfo=UTC)
 
 
 def make_schedule(path, games):
+    """Each game is (season, week, type, kickoff, date) and optionally a sixth value, is_final."""
     connection = duckdb.connect(str(path))
     connection.execute(
         "create table stg_schedules (season integer, week integer, game_type varchar, "
-        "kickoff_et timestamp, game_date date)"
+        "kickoff_et timestamp, game_date date, is_final boolean)"
     )
-    for season, week, game_type, kickoff, day in games:
+    for season, week, game_type, kickoff, day, *final in games:
         connection.execute(
-            "insert into stg_schedules values (?, ?, ?, ?, ?)",
-            [season, week, game_type, kickoff, day],
+            "insert into stg_schedules values (?, ?, ?, ?, ?, ?)",
+            [season, week, game_type, kickoff, day, final[0] if final else False],
         )
     connection.close()
 
@@ -254,6 +255,77 @@ def test_forcing_a_lock_still_works_for_a_person_running_it_by_hand(world):
     )
 
     assert summary.locked is True
+
+
+# ---------------------------------------------------------------- nothing to project
+
+
+@pytest.fixture
+def played_world(world, monkeypatch):
+    """Every game in the feature store has an outcome, and the next week is on the schedule."""
+    settings = world[0]
+    connection = duckdb.connect(str(settings.warehouse_path))
+    connection.execute("update stg_schedules set is_final = true")
+    connection.execute(
+        "insert into stg_schedules values (2026, 6, 'REG', ?, ?, false)",
+        [datetime(2026, 10, 18, 13, 0), datetime(2026, 10, 18)],
+    )
+    connection.close()
+    frame = pd.DataFrame(
+        {
+            "player_id": ["P1"],
+            "season": 2026,
+            "week": 5,
+            "team": "AAA",
+            "opponent_team": "BBB",
+            "is_home": True,
+            "injury_status": None,
+            "actual_ppr": 12.0,
+            "ppr_mean5": 8.0,
+            "ppr_mean10": 8.0,
+            "ppr_season_avg": 8.0,
+        }
+    )
+    monkeypatch.setattr(run_module, "load_features", lambda _path: frame)
+    return world
+
+
+WEEK_6_KICKOFF = datetime(2026, 10, 18, 17, 0, tzinfo=UTC)
+
+
+def test_a_gap_with_the_next_kickoff_days_away_is_noted_and_does_not_fail(played_world):
+    summary = go(played_world, WEEK_6_KICKOFF - timedelta(days=4))
+
+    assert summary.predicted_week is None
+    assert "week 6 cannot be projected yet" in " ".join(summary.notes)
+
+
+def test_nothing_to_project_with_the_lock_window_open_fails_loudly(played_world):
+    with pytest.raises(PredictionError, match="week 6 is scheduled but no players"):
+        go(played_world, WEEK_6_KICKOFF - timedelta(hours=9))
+
+
+def test_nothing_to_project_after_the_kickoff_has_passed_fails_loudly(played_world):
+    with pytest.raises(PredictionError, match="no players could be projected"):
+        go(played_world, WEEK_6_KICKOFF + timedelta(hours=2))
+
+
+def test_a_finished_season_is_not_a_failure(played_world):
+    connection = duckdb.connect(str(played_world[0].warehouse_path))
+    connection.execute("update stg_schedules set is_final = true")
+    connection.close()
+
+    summary = go(played_world, WEEK_6_KICKOFF + timedelta(days=30))
+
+    assert "nothing left to project" in " ".join(summary.notes)
+
+
+def test_without_the_unattended_flag_the_old_message_is_kept(played_world):
+    settings, site, records, _ = played_world
+
+    summary = run_predictions(settings, site, records=records, now=WEEK_6_KICKOFF)
+
+    assert "every week of 2026 has been played" in " ".join(summary.notes)
 
 
 # ---------------------------------------------------------------- the daily command
