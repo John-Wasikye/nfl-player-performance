@@ -13,10 +13,11 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # typescript-eslint (bundled by eslint-config-next) throws "does not support TS 7.0", which
-      # fails the lint step. Remove this once typescript-eslint supports TypeScript 7.
+      # The linter and Next need TypeScript's JavaScript API, which TypeScript 7 does not publish yet
+      # (typescript-eslint throws "does not support TS 7.0"). They stay on 6.0.x; the type-check runs
+      # on 7.x through the typescript-native alias. Remove once typescript-eslint supports 7.
       - dependency-name: typescript
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # The types should match the Node major the site is built with (22 in CI, 24 locally), not
       # run ahead of it.
       - dependency-name: "@types/node"
