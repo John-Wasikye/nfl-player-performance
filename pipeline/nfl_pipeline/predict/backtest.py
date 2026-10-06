@@ -225,7 +225,7 @@ class PublishedScore:
     The harness trains and replays over everyone, which is right: throwing away training data made
     the model worse (research section 5.15). But the product is judged on the roughly two thirds of
     players with a real enough role to be published, and a change should be judged the same way.
-    Scoring a candidate over the whole population dilutes it — an idea that helps exactly the
+    Scoring a candidate over the whole population dilutes it: an idea that helps exactly the
     players on the site and does nothing for a deep-bench receiver would look two thirds as good as
     it is.
 
@@ -258,7 +258,7 @@ def paired_evidence(champion: PublishedScore, challenger: PublishedScore) -> dic
 
     Comparing two mean absolute errors throws that away. The same player-week appears on both
     sides, so the difference can be taken per row, and the spread of those differences says
-    directly whether an improvement is distinguishable from noise — something a fixed margin can
+    directly whether an improvement is distinguishable from noise, something a fixed margin can
     only approximate.
 
     The mean of the paired differences equals the difference of the two MAEs exactly, so this adds

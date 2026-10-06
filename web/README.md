@@ -1,7 +1,8 @@
 # Website
 
-The public site for NFL Player Performance: position rankings (composite score and fantasy points),
-player pages with rank history and a score breakdown, and a methodology page that shows the backtest.
+The public site for NFL Player Performance, live at https://nflstats.johnwasikye.com: position rankings
+(composite score and fantasy points), player pages with rank history and a score breakdown, weekly
+projections with ranges, a report card that grades them, and a methodology page that shows the backtest.
 
 It is a fully static Next.js site. Every page is pre-built HTML, and the rankings are fetched in the
 browser from the pipeline's published JSON (`/data/v1/...`), so the daily data refresh never needs a
@@ -35,7 +36,10 @@ Set `NEXT_PUBLIC_DATA_BASE` to read the data from somewhere else, for example a 
 | `/` | Season and week status, biggest movers, the top five at each position |
 | `/rankings/[position]/` | Sortable, filterable table for QB, RB, WR, TE, or K; composite or fantasy view; week selector |
 | `/player/?id=...` | Rank history chart, stat tiles, and why the player is ranked where they are |
+| `/predictions/[position]/` | Next week's projection for each player, with the range it could land in |
+| `/report-card/` | Locked forecasts graded against what happened, and the log of every experiment tried |
 | `/methodology/` | The exact settings in use and the backtest results |
+| `/methodology/predictions/` | How the projections are made, and the research paper behind them |
 | `/about/` | Data sources, attribution, glossary, disclaimers |
 
 A single static `/player/` page serves every player (the id is a query parameter), so the site does not
@@ -55,6 +59,13 @@ be shared.
   banner if the published data is more than 36 hours old.
 - **Data contract:** `lib/types.ts` mirrors `pipeline/nfl_pipeline/contract.py`. The site refuses data
   whose `schema_version` it does not understand.
+
+## Deploying
+
+Merging to `main` deploys the site: CI builds it and runs `scripts/deploy-site.sh`, which uploads `out/` to the
+site bucket and refreshes CloudFront. The script never touches `data/v1/`, because the daily pipeline owns that
+prefix. To deploy by hand, sign in with `aws sso login --profile nfl_player_stats`, then run `npm run build` and
+`AWS_PROFILE=nfl_player_stats bash scripts/deploy-site.sh`.
 
 ## Tests
 

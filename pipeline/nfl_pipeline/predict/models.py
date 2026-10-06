@@ -177,8 +177,8 @@ class PredictionModel:
 
         The eligibility filter here is not a detail. Conformal prediction only guarantees coverage
         when the calibration set is exchangeable with what is being predicted. Calibrating on a
-        population full of low-volume players — whose errors are small, because near-zero scores are
-        easy — produces an offset that is too narrow for the players actually published. Experiment
+        population full of low-volume players (whose errors are small, because near-zero scores are
+        easy) produces an offset that is too narrow for the players actually published. Experiment
         K measured exactly that: training on everyone and calibrating on everyone dropped coverage
         from 0.798 to 0.778, against a nominal 0.80.
 

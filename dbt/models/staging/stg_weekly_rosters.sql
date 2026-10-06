@@ -1,7 +1,7 @@
 -- Who was actually on each team's roster in each week, and in what capacity.
 --
--- This is the authority on whether a player exists for a given week. The alternative — inferring a
--- roster from who has recently appeared in a box score — quietly keeps retired players on the
+-- This is the authority on whether a player exists for a given week. The alternative (inferring a
+-- roster from who has recently appeared in a box score) quietly keeps retired players on the
 -- books, because "has not played lately" and "is not on the team" look identical in stats data.
 --
 -- `status` is nflverse's own code. The ones that matter here:

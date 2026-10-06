@@ -1,6 +1,10 @@
 # Step 12: AWS account and guardrails
 
-The first step of the AWS phase. No Terraform and no project code yet - this is console work plus two
+**Status: done on 2026-10-05.** Steps 13 to 19 followed it: Terraform, the pipeline on Fargate, alarms,
+CloudFront, CI/CD and the domain. The current state is in the main README and `infra/README.md`. This file
+is kept as the runbook for how the account was set up.
+
+The first step of the AWS phase. No Terraform and no project code yet. This is console work plus two
 installs, and it ends with an account that cannot quietly run up a bill.
 
 Written 2026-10-01. Prices and console wording drift; if something here does not match what you see,
@@ -10,7 +14,7 @@ trust the console and correct this file.
 
 Gather:
 
-- **An email address for the root account.** Use a dedicated one, not your everyday inbox - the root
+- **An email address for the root account.** Use a dedicated one, not your everyday inbox. The root
   email is a permanent identity for the account and is painful to change later. A Gmail alias works:
   `yourname+aws@gmail.com` delivers to your normal inbox but is a distinct address to AWS. Do not
   publish the address you actually use for the root account.
@@ -21,13 +25,13 @@ Gather:
 
 Decide:
 
-- **Region: `us-east-1` (N. Virginia).** Not a free choice - ACM certificates used by CloudFront must
+- **Region: `us-east-1` (N. Virginia).** Not a free choice: ACM certificates used by CloudFront must
   live in us-east-1, and CloudWatch billing metrics only publish there. Putting everything in one region
   avoids a split setup.
 - **A globally unique bucket prefix.** S3 bucket names are unique across *all* AWS accounts on earth, so
   the logical names in `storage-design.md` (`nfl-raw`, `nfl-records`, `nfl-site`, `nfl-tfstate`) are
-  almost certainly taken. Pick a prefix now and use it everywhere: `jw-nfl-` or `johnwasikye-nfl-`
-  giving, for example, `jw-nfl-raw`. Write the choice down; Terraform will need it.
+  almost certainly taken. Pick a prefix now and use it everywhere. The prefix chosen here was
+  `jw-nfl-player-stats`, giving `jw-nfl-player-stats-raw` and so on. Write the choice down; Terraform needs it.
 
 ## 12.1 Create the account
 
@@ -36,7 +40,7 @@ Decide:
 3. Choose **Personal** for the account type and fill in the contact details.
 4. Add the payment card. AWS may place a small temporary authorisation on it.
 5. Complete phone/SMS identity verification.
-6. **Choose the Basic support plan - it is free.** The Developer plan is $29/month and you do not need
+6. **Choose the Basic support plan. It is free.** The Developer plan is $29/month and you do not need
    it. This is the one screen in signup where it is easy to spend money by accident.
 7. Sign in to the console.
 
@@ -49,7 +53,7 @@ Treat it as a break-glass credential.
    authentication -> assign an authenticator app or passkey.
 2. **Do not create root access keys.** If any exist, delete them. A leaked root key is an unrecoverable
    situation.
-3. **Stop using root** after this step. You will only need it again for a handful of things - closing the
+3. **Stop using root** after this step. You will only need it again for a handful of things: closing the
    account, changing the support plan, a few billing settings.
 
 ## 12.3 Turn on IAM access to billing
@@ -135,22 +139,22 @@ Your $5 budget should come back. An access-denied error here means 12.3 did not 
 
 One decision left here, and it is worth understanding rather than guessing.
 
-**Option A - IAM Identity Center (recommended).** You sign in with `aws sso login` and the CLI receives
+**Option A: IAM Identity Center (recommended).** You sign in with `aws sso login` and the CLI receives
 short-lived credentials that expire. Nothing long-lived is ever written to your laptop. Roughly ten
 minutes more setup: enable Identity Center, create a user, create a permission set with
 `AdministratorAccess`, assign it to the account, then `aws configure sso`.
 
-**Option B - a plain IAM user.** Create a user, attach `AdministratorAccess`, enable MFA on it, create an
+**Option B: a plain IAM user.** Create a user, attach `AdministratorAccess`, enable MFA on it, create an
 access key, then `aws configure`. Fewer concepts, but it puts a permanent key and secret in
 `~/.aws/credentials` on your machine. Long-lived access keys sitting in a home directory are the single
 most common way personal AWS accounts get taken over.
 
 Either way: **MFA on the identity, and never reuse the root user for day-to-day work.** This choice does
-not affect CI - step 18 uses GitHub Actions with OIDC, which stores no AWS keys regardless.
+not affect CI: step 18 uses GitHub Actions with OIDC, which stores no AWS keys regardless.
 
 ## 12.6 Install the tools
 
-Neither is currently installed on this machine. Both are available through winget:
+Both are available through winget:
 
 ```
 winget install Amazon.AWSCLI
@@ -165,12 +169,12 @@ terraform version
 ```
 
 Terraform 1.10 and later locks remote state in S3 natively via `use_lockfile`, so **you do not need a
-DynamoDB lock table** - most tutorials still tell you to create one. winget currently offers 1.16.x.
+DynamoDB lock table**. Most tutorials still tell you to create one. winget currently offers 1.16.x.
 
 ## 12.7 Connect the CLI
 
 - Identity Center: `aws configure sso`, then `aws sso login`.
-- IAM user: `aws configure` - access key, secret, region `us-east-1`, output `json`.
+- IAM user: `aws configure`, then your access key, secret, region `us-east-1` and output `json`.
 
 Verify with:
 
@@ -196,16 +200,15 @@ that before going further.
 - **New accounts currently get up to $200 in credits over 6 months**, which will likely cover the early
   months of this project outright. The steady-state estimate is about $1-1.50/month (BUILD_PLAN.md
   section 13).
-- **The CloudFront flat-rate Free plan lists accounts "using AWS Free Tier" as ineligible.** That may
-  conflict with those credits. It does not matter yet - step 17 is where it lands - and the fallback is
-  harmless, because pay-as-you-go CloudFront still includes 1 TB of transfer and 10M requests a month
-  free. Check eligibility when you get there rather than now.
+- **The CloudFront flat-rate Free plan lists accounts "using AWS Free Tier" as ineligible.** That turned out
+  not to matter. The Terraform AWS provider cannot select a flat-rate plan anyway, so the site uses
+  pay-as-you-go CloudFront, whose always-free tier (1 TB of transfer and 10M requests a month) covers it.
+  It also avoids the web ACL that the flat-rate plan makes mandatory.
 
 One rule to carry forward: every alarm added from here on sets `treat_missing_data = "breaching"`, and
 every alert path is fired once on purpose. The reason, and the full inventory of ways this system could
 fail quietly, is in `no-silent-failures.md`. The single worst case is a staleness alarm left on CloudWatch's
-default, which goes to `INSUFFICIENT_DATA` instead of `ALARM` when the pipeline stops emitting entirely -
-silent at exactly the moment it is needed.
+default, which goes to `INSUFFICIENT_DATA` instead of `ALARM` when the pipeline stops emitting entirely.
+That is silent at exactly the moment it is needed.
 
-Next: step 13, the Terraform base (remote state, buckets, IAM roles, ECR, budget). The bucket layout is
-already decided in `storage-design.md`.
+Next was step 13, the Terraform base. That and everything after it is built; see `infra/README.md`.
