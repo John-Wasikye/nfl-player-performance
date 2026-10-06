@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { niceMax, rankTicks, RankHistoryChart, BreakdownBars } from "@/components/charts";
 import { Avatar, MovementChip } from "@/components/ui";
-import { backtestVerdict } from "@/components/MethodologyView";
+import { Backtest, backtestVerdict } from "@/components/MethodologyView";
 import { contrastRatio, readableTextColor, TEAM_COLORS, teamColor } from "@/lib/teams";
 import type { BacktestHeadline, BreakdownItem } from "@/lib/types";
 
@@ -169,5 +169,22 @@ describe("backtest verdict", () => {
     const lines = backtestVerdict(fine);
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatch(/about as well as/);
+  });
+
+  it("shows one composite column when the setting in use is also the tested best", () => {
+    const same = structuredClone(base);
+    same.selected_efficiency_weight = same.current_efficiency_weight;
+
+    render(<Backtest backtest={same} />);
+
+    expect(screen.getByText("Composite, current setting (also the tested best)")).toBeInTheDocument();
+    expect(screen.queryByText("Composite, tested best")).not.toBeInTheDocument();
+  });
+
+  it("keeps both composite columns when they differ", () => {
+    render(<Backtest backtest={base} />);
+
+    expect(screen.getByText("Composite, current setting")).toBeInTheDocument();
+    expect(screen.getByText("Composite, tested best")).toBeInTheDocument();
   });
 });
