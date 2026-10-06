@@ -40,8 +40,10 @@ export function backtestVerdict(b: BacktestHeadline): string[] {
   return lines;
 }
 
-function Backtest({ backtest }: { backtest: BacktestHeadline }) {
+export function Backtest({ backtest }: { backtest: BacktestHeadline }) {
   const positions = Object.keys(backtest.held_out_spearman) as Position[];
+  // When the setting in use is also the best one tested, two identical columns say nothing extra.
+  const sameSetting = backtest.selected_efficiency_weight === backtest.current_efficiency_weight;
   return (
     <section aria-label="Backtest">
       <SectionTitle
@@ -54,8 +56,12 @@ function Backtest({ backtest }: { backtest: BacktestHeadline }) {
           <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Position</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Composite, current setting</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Composite, tested best</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {sameSetting ? "Composite, current setting (also the tested best)" : "Composite, current setting"}
+              </th>
+              {!sameSetting && (
+                <th scope="col" className="px-4 py-3 text-right font-medium">Composite, tested best</th>
+              )}
               <th scope="col" className="px-4 py-3 text-right font-medium">Fantasy points per game</th>
             </tr>
           </thead>
@@ -66,7 +72,7 @@ function Backtest({ backtest }: { backtest: BacktestHeadline }) {
                 <tr key={p} className="border-b border-line/70 last:border-0">
                   <th scope="row" className="px-4 py-3 text-left font-medium">{p}</th>
                   <td className="px-4 py-3 text-right">{fmt(row.current)}</td>
-                  <td className="px-4 py-3 text-right">{fmt(row.selected)}</td>
+                  {!sameSetting && <td className="px-4 py-3 text-right">{fmt(row.selected)}</td>}
                   <td className="px-4 py-3 text-right">{fmt(row.points_per_game_baseline)}</td>
                 </tr>
               );
