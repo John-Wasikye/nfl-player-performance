@@ -119,6 +119,8 @@ and compare: identical means log and return it, different means raise, same as t
 The locked files and the ledger are in git because a reader can verify them without trusting AWS or
 the author. That is worth keeping, and a Fargate task cannot commit to git.
 
+**Status 2026-10-06: not built yet.** Until it is, git holds only the seed copy of the ledger.
+
 So: **S3 is the runtime store, git is the published record.** A scheduled GitHub Actions job pulls new
 locked weeks and the ledger out of S3 and commits them. If the mirror fails, the authoritative object
 still exists in S3 under Object Lock and nothing is lost, because the mirror is for publication, not
