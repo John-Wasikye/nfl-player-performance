@@ -140,6 +140,7 @@ resource "aws_cloudfront_distribution" "site" {
   comment             = "NFL Player Performance site"
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
+  aliases             = var.attach_domain ? [var.site_domain] : []
 
   origin {
     origin_id                = "site-bucket"
@@ -194,8 +195,12 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
+  # The distribution's own *.cloudfront.net certificate until the domain is attached (domain.tf).
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.attach_domain ? null : true
+    acm_certificate_arn            = var.attach_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    ssl_support_method             = var.attach_domain ? "sni-only" : null
+    minimum_protocol_version       = var.attach_domain ? "TLSv1.2_2021" : null
   }
 }
 
