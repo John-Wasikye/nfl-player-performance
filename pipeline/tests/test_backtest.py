@@ -241,6 +241,20 @@ def test_the_report_renders_and_names_the_chosen_and_current_settings(backtest_w
     assert "Baseline: fantasy points per game" in report
 
 
+def test_the_report_does_not_repeat_itself_when_the_chosen_setting_is_the_current_one(
+    backtest_warehouse,
+):
+    summary = run_backtest(backtest_warehouse, now=NOW)
+    summary["current_efficiency_weight"] = summary["selected_efficiency_weight"]
+
+    report = render_report(summary)
+
+    assert "(chosen and current)" in report
+    assert "(chosen) (current)" not in report
+    assert "| Chosen and current |" in report
+    assert "| Current |" not in report
+
+
 def test_the_methodology_summary_carries_the_headline_numbers(backtest_warehouse):
     summary = run_backtest(backtest_warehouse, now=NOW)
 

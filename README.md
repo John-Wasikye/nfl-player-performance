@@ -32,7 +32,8 @@ then rankings and projections, then a validation gate, then JSON in S3, then Clo
    point-in-time feature store for the predictions. Every run executes the data tests (158 checks, including
    tests that prove a feature never sees its own week).
 3. **Rank and project.** The composite score mixes efficiency and production metrics, each percentile-scored
-   within the position. The weights live in `dbt/seeds/ranking_config.csv`. Projections come from a ridge and
+   within the position, weighted 20% efficiency and 80% production, the split that held up best in the
+   backtest. The weights live in `dbt/seeds/ranking_config.csv`. Projections come from a ridge and
    LightGBM ensemble with conformal ranges, evaluated walk-forward so no season is scored on data it saw.
 4. **Validate and publish.** The published JSON is a versioned contract. A validation gate checks the schema,
    the row counts and freshness, and writes nothing if anything is wrong, so a bad run leaves the old data live.
@@ -133,8 +134,6 @@ docs/                    design notes, the backtest, the research paper, held-ba
 
 - A mobile app is planned and not started.
 - No week has been graded yet. The first graded week will appear on the report card once a locked week ends.
-- The 70/30 efficiency and production split is still under review, because the backtest prefers more weight
-  on production.
 
 ## Data
 

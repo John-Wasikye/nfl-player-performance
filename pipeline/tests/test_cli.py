@@ -94,7 +94,7 @@ def steps(monkeypatch):
         calls.append("dbt")
         return outcome["dbt"]
 
-    def fake_publish(_warehouse, _storage, *, now):
+    def fake_publish(_warehouse, _storage, *, lake, now):
         calls.append("publish")
         if outcome["publish_error"]:
             raise cli.PublishError(outcome["publish_error"])
@@ -103,6 +103,22 @@ def steps(monkeypatch):
     monkeypatch.setattr(cli, "_run_dbt_build", fake_dbt)
     monkeypatch.setattr(cli, "publish", fake_publish)
     return calls, outcome
+
+
+def test_publish_writes_to_the_site_store_and_reads_the_raw_store(
+    fake_host, steps, monkeypatch, tmp_path
+):
+    seen = {}
+
+    def capture(_warehouse, storage, *, lake, now):
+        seen["site"], seen["lake"] = storage._root, lake._root
+        return PublishSummary(season=2026, latest_week=2, files_written=1)
+
+    monkeypatch.setattr(cli, "publish", capture)
+
+    assert cli.main(["publish"]) == 0
+    assert seen["site"] == tmp_path / "data" / "site"
+    assert seen["lake"] == tmp_path / "data"
 
 
 def serve_players(fake_host):

@@ -164,7 +164,7 @@ class RecordingStorage(LocalStorage):
 
 
 def test_publishes_the_full_set_of_files(warehouse, lake):
-    summary = publish(warehouse, lake, now=NOW)
+    summary = publish(warehouse, lake, lake=lake, now=NOW)
 
     assert summary.season == 2026
     assert summary.latest_week == 2
@@ -181,7 +181,7 @@ def test_publishes_the_full_set_of_files(warehouse, lake):
 def test_meta_is_written_last(warehouse, tmp_path):
     storage = RecordingStorage(tmp_path / "lake")
 
-    publish(warehouse, storage, now=NOW)
+    publish(warehouse, storage, lake=storage, now=NOW)
 
     assert storage.writes[-1] == f"{DEFAULT_PREFIX}/meta.json"
     assert storage.writes.count(f"{DEFAULT_PREFIX}/meta.json") == 1
@@ -200,7 +200,7 @@ def test_meta_describes_the_published_data(warehouse, lake):
         ).encode(),
     )
 
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     meta = read_json(lake, "meta.json")
     assert meta["season"] == 2026
@@ -213,7 +213,7 @@ def test_meta_describes_the_published_data(warehouse, lake):
 
 
 def test_ranked_players_come_first_then_the_unranked(warehouse, lake):
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     players = read_json(lake, "rankings/2026/2/QB.json")["players"]
 
@@ -227,8 +227,8 @@ def test_ranked_players_come_first_then_the_unranked(warehouse, lake):
 def test_publishing_is_deterministic(warehouse, tmp_path):
     first, second = LocalStorage(tmp_path / "a"), LocalStorage(tmp_path / "b")
 
-    publish(warehouse, first, now=NOW)
-    publish(warehouse, second, now=NOW)
+    publish(warehouse, first, lake=first, now=NOW)
+    publish(warehouse, second, lake=second, now=NOW)
 
     for path in (tmp_path / "a").rglob("*.json"):
         other = tmp_path / "b" / path.relative_to(tmp_path / "a")
@@ -236,7 +236,7 @@ def test_publishing_is_deterministic(warehouse, tmp_path):
 
 
 def test_player_file_has_history_and_the_latest_breakdown(warehouse, lake):
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     player = read_json(lake, "players/QB1.json")
 
@@ -254,7 +254,7 @@ def test_movers_lists_the_biggest_risers_and_fallers(tmp_path, lake):
             row["composite_movement"] = {1: 4, 2: -3, 3: 1}.get(row["composite_rank"], 0)
     warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows)
 
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     movers = read_json(lake, "movers/2026/2.json")
     assert [m["player_id"] for m in movers["risers"]["QB"]] == ["QB1", "QB3"]
@@ -263,7 +263,7 @@ def test_movers_lists_the_biggest_risers_and_fallers(tmp_path, lake):
 
 
 def test_methodology_lists_the_settings_in_use(warehouse, lake):
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     methodology = read_json(lake, "methodology.json")
 
@@ -293,7 +293,7 @@ def test_duplicate_ranks_block_the_publish(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows)
 
     with pytest.raises(PublishError, match="composite ranks"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
     assert not published_anything(tmp_path)
 
@@ -307,7 +307,7 @@ def test_too_few_ranked_players_blocks_the_publish(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows)
 
     with pytest.raises(PublishError, match="only 3 ranked players"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
     assert not published_anything(tmp_path)
 
@@ -318,7 +318,7 @@ def test_a_score_outside_0_to_100_blocks_the_publish(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows)
 
     with pytest.raises(PublishError, match="contract"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
     assert not published_anything(tmp_path)
 
@@ -330,12 +330,12 @@ def test_an_unranked_player_with_a_score_blocks_the_publish(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows)
 
     with pytest.raises(PublishError, match="unranked but has a score"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
 
 def test_a_missing_warehouse_is_reported(tmp_path, lake):
     with pytest.raises(PublishError, match="warehouse not found"):
-        publish(tmp_path / "nope.duckdb", lake, now=NOW)
+        publish(tmp_path / "nope.duckdb", lake, lake=lake, now=NOW)
 
 
 def test_an_empty_rankings_table_is_reported(tmp_path, lake):
@@ -345,19 +345,19 @@ def test_an_empty_rankings_table_is_reported(tmp_path, lake):
     connection.close()
 
     with pytest.raises(PublishError, match="empty"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
 
 def test_a_failed_publish_leaves_the_previous_data_untouched(tmp_path, lake):
     good = make_warehouse(tmp_path / "good.duckdb")
-    publish(good, lake, now=NOW)
+    publish(good, lake, lake=lake, now=NOW)
     before = lake.get_bytes(f"{DEFAULT_PREFIX}/meta.json")
 
     rows = all_rankings()
     rows[0]["composite_score"] = -5.0
     bad = make_warehouse(tmp_path / "bad.duckdb", rankings=rows)
     with pytest.raises(PublishError):
-        publish(bad, lake, now=datetime(2026, 9, 19, tzinfo=timezone.utc))
+        publish(bad, lake, lake=lake, now=datetime(2026, 9, 19, tzinfo=timezone.utc))
 
     assert lake.get_bytes(f"{DEFAULT_PREFIX}/meta.json") == before
 
@@ -408,7 +408,7 @@ def test_methodology_includes_the_backtest_headline_when_one_has_been_run(wareho
         ).encode(),
     )
 
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     backtest = read_json(lake, "methodology.json")["backtest"]
     assert backtest["selected_efficiency_weight"] == 0.2
@@ -423,7 +423,7 @@ def test_methodology_includes_the_backtest_headline_when_one_has_been_run(wareho
 def test_an_unreadable_backtest_summary_is_ignored_not_fatal(warehouse, lake):
     lake.put_bytes("backtest/summary.json", b"not json at all")
 
-    publish(warehouse, lake, now=NOW)
+    publish(warehouse, lake, lake=lake, now=NOW)
 
     assert read_json(lake, "methodology.json")["backtest"] is None
 
@@ -536,7 +536,7 @@ def test_a_played_game_with_no_result_blocks_the_publish(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
 
     with pytest.raises(PublishError, match="still have no result"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
     assert not published_anything(tmp_path)
 
@@ -547,7 +547,7 @@ def test_rankings_lagging_a_settled_week_block_the_publish(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
 
     with pytest.raises(PublishError, match="rankings stop at week 2"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
     assert not published_anything(tmp_path)
 
@@ -558,7 +558,7 @@ def test_a_game_still_in_progress_does_not_block_the_publish(tmp_path, lake):
     schedule = default_schedule() + [game(3, kickoff=kickoff, final=False)]
     warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
 
-    summary = publish(warehouse, lake, now=NOW)
+    summary = publish(warehouse, lake, lake=lake, now=NOW)
 
     assert summary.latest_week == 2
 
@@ -571,7 +571,7 @@ def test_playoff_and_preseason_games_are_ignored(tmp_path, lake):
     ]
     warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
 
-    assert publish(warehouse, lake, now=NOW).latest_week == 2
+    assert publish(warehouse, lake, lake=lake, now=NOW).latest_week == 2
 
 
 def test_a_missing_schedule_table_is_reported_rather_than_passed(tmp_path, lake):
@@ -579,7 +579,7 @@ def test_a_missing_schedule_table_is_reported_rather_than_passed(tmp_path, lake)
     warehouse = make_warehouse(tmp_path / "w.duckdb", with_schedules=False)
 
     with pytest.raises(PublishError, match="stg_schedules"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
     assert not published_anything(tmp_path)
 
@@ -588,7 +588,7 @@ def test_a_season_with_no_regular_season_games_is_reported(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=[])
 
     with pytest.raises(PublishError, match="no regular-season games"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
 
 def test_a_game_with_no_kickoff_or_date_is_reported(tmp_path, lake):
@@ -597,7 +597,7 @@ def test_a_game_with_no_kickoff_or_date_is_reported(tmp_path, lake):
     warehouse = make_warehouse(tmp_path / "w.duckdb", schedules=schedule)
 
     with pytest.raises(PublishError, match="neither a kickoff time nor a date"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
 
 def test_a_game_with_only_a_date_is_still_checked(tmp_path, lake):
@@ -609,7 +609,7 @@ def test_a_game_with_only_a_date_is_still_checked(tmp_path, lake):
     )
 
     with pytest.raises(PublishError, match="still have no result"):
-        publish(warehouse, lake, now=NOW)
+        publish(warehouse, lake, lake=lake, now=NOW)
 
 
 def test_the_offseason_is_not_stale(tmp_path, lake):
@@ -621,6 +621,72 @@ def test_the_offseason_is_not_stale(tmp_path, lake):
     rows = all_rankings(weeks=(1, 2))
     warehouse = make_warehouse(tmp_path / "w.duckdb", rankings=rows, schedules=schedule)
 
-    summary = publish(warehouse, lake, now=datetime(2026, 3, 1, tzinfo=timezone.utc))
+    summary = publish(warehouse, lake, lake=lake, now=datetime(2026, 3, 1, tzinfo=timezone.utc))
 
     assert summary.latest_week == 2
+
+
+# The site and the raw lake are different buckets on AWS. These two files are written to the lake
+# and were once looked for in the site store, so the live site showed no backtest and no data dates.
+
+
+def backtest_summary() -> bytes:
+    return json.dumps(
+        {
+            "generated_at": "2026-09-18T00:00:00+00:00",
+            "seasons": {"tune": [2021, 2022], "test": [2023]},
+            "selected_efficiency_weight": 0.2,
+            "current_efficiency_weight": 0.2,
+            "results": {
+                "points": {
+                    "test": {
+                        method: {
+                            "positions": {position: {"spearman": value} for position in POSITIONS}
+                        }
+                        for method, value in (
+                            ("composite_020", 0.30),
+                            ("ppr_per_game", 0.31),
+                        )
+                    }
+                }
+            },
+        }
+    ).encode()
+
+
+INGEST_STATE = json.dumps(
+    {
+        "schedules/season=2026/schedules.parquet": {
+            "source_last_updated": "2026-10-05T10:00:00Z",
+            "ingested_at": "2026-10-05T11:00:00Z",
+        }
+    }
+).encode()
+
+
+def test_the_ingest_dates_and_backtest_come_from_the_raw_store_not_the_site_store(
+    warehouse, tmp_path
+):
+    site = LocalStorage(tmp_path / "site")
+    raw = LocalStorage(tmp_path / "raw")
+    raw.put_bytes("manifests/state.json", INGEST_STATE)
+    raw.put_bytes("backtest/summary.json", backtest_summary())
+
+    publish(warehouse, site, lake=raw, now=NOW)
+
+    assert read_json(site, "meta.json")["data_as_of"] == {"schedules": "2026-10-05T10:00:00Z"}
+    assert read_json(site, "methodology.json")["backtest"]["selected_efficiency_weight"] == 0.2
+
+
+def test_files_that_only_sit_in_the_site_store_are_not_mistaken_for_the_raw_ones(
+    warehouse, tmp_path
+):
+    site = LocalStorage(tmp_path / "site")
+    raw = LocalStorage(tmp_path / "raw")
+    site.put_bytes("manifests/state.json", INGEST_STATE)
+    site.put_bytes("backtest/summary.json", backtest_summary())
+
+    publish(warehouse, site, lake=raw, now=NOW)
+
+    assert read_json(site, "meta.json")["data_as_of"] == {}
+    assert read_json(site, "methodology.json")["backtest"] is None

@@ -36,7 +36,7 @@ TOP_K = {"QB": 12, "RB": 24, "WR": 24, "TE": 12, "K": 12}
 EFFICIENCY_WEIGHTS = (0.0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0)
 BASELINES = ("ppr_total", "ppr_per_game")
 MIN_POOL = 8  # groups with fewer ranked players than this are too small to score meaningfully
-CURRENT_WEIGHT = 0.7  # the setting in ranking_config today
+CURRENT_WEIGHT = 0.2  # the setting in ranking_config today
 OUTCOMES = {"points": "next_points", "epa": "next_epa"}
 # Tuning weights within this much of the best average Spearman are treated as tied, and the tie is
 # resolved toward the higher efficiency weight (the project's stated preference for efficiency).
@@ -375,9 +375,12 @@ def _label(method: str, selected: float, current: float) -> str:
         return "Baseline: fantasy points per game"
     weight = int(method.split("_")[1]) / 100
     label = f"Composite, {weight:.0%} efficiency"
-    if abs(weight - selected) < 1e-9:
+    is_chosen, is_current = abs(weight - selected) < 1e-9, abs(weight - current) < 1e-9
+    if is_chosen and is_current:
+        label += " (chosen and current)"
+    elif is_chosen:
         label += " (chosen)"
-    if abs(weight - current) < 1e-9:
+    elif is_current:
         label += " (current)"
     return label
 
@@ -394,6 +397,9 @@ def render_report(summary: dict) -> str:
     selected, current = summary["selected_efficiency_weight"], summary["current_efficiency_weight"]
     results = summary["results"]
     chosen_method, current_method = method_name(selected), method_name(current)
+    same = abs(selected - current) < 1e-9
+    compared = [chosen_method] if same else [chosen_method, current_method]
+    compared_names = ["Chosen and current"] if same else ["Chosen", "Current"]
 
     lines = [
         "# Backtest: does rank predict next week?",
@@ -463,7 +469,7 @@ def render_report(summary: dict) -> str:
         "",
     ]
     lines += _table(
-        ["Position", "Weeks", "Chosen", "Current", "Per-game baseline"],
+        ["Position", "Weeks", *compared_names, "Per-game baseline"],
         [
             [
                 position,
@@ -471,8 +477,7 @@ def render_report(summary: dict) -> str:
                 *[
                     f"{_fmt(entry['spearman'])} ± {_fmt(entry['spearman_se'])}"
                     for entry in (
-                        points["test"][chosen_method]["positions"][position],
-                        points["test"][current_method]["positions"][position],
+                        *[points["test"][m]["positions"][position] for m in compared],
                         points["test"]["ppr_per_game"]["positions"][position],
                     )
                 ],
@@ -491,21 +496,21 @@ def render_report(summary: dict) -> str:
         "",
     ]
     lines += _table(
-        ["Position", "Chosen", "Current"],
+        ["Position", *compared_names],
         [
             [
                 position,
                 *[
                     f"{_fmt(comparison[m][position]['mean_difference'])} "
                     f"± {_fmt(comparison[m][position]['se'])}"
-                    for m in (chosen_method, current_method)
+                    for m in compared
                 ],
             ]
             for position in POSITIONS
         ],
     )
 
-    shown = [chosen_method, current_method, "ppr_per_game", "ppr_total"]
+    shown = [*compared, "ppr_per_game", "ppr_total"]
     lines += [
         "",
         "## Held-out Spearman by point in the season (fantasy points, average across positions)",

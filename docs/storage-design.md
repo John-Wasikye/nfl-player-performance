@@ -34,7 +34,7 @@ can rewrite is not evidence.
 | Locked weekly predictions | ~60 KB/week | **record** | `nfl-records`, write-once (see below) |
 | Experiment ledger | 3.3 KB | **record** | `nfl-records`, plus a git mirror |
 | dbt seeds (ranking config) | tiny | code | git, baked into the image |
-| Backtest summary | 4 KB | derived | `nfl-site` under `data/v1/` with the rest |
+| Backtest summary | 4 KB | derived | `nfl-raw` at `backtest/summary.json`; its headline numbers are published in `methodology.json` |
 
 ## Decision 1: always rebuild, then publish a read-only snapshot
 
@@ -192,5 +192,4 @@ The owner intends to move it eventually. The researched route is Claude Code on 
 
 ## What this does not decide
 
-- Whether `ranking_config.csv` stays at 70/30 (open decision, unrelated to storage).
 - Glue and Athena, which are deferred past launch and read `nfl-raw` when they arrive.
