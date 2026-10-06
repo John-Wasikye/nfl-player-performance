@@ -7,7 +7,7 @@
 -- team. Comparing those would assert something false.
 --
 -- That leaves the fallback branch, which is empty today, so this test currently passes vacuously.
--- It is here because the obvious way to write that branch — `arg_max(team, week)` — orders by week
+-- It is here because the obvious way to write that branch (`arg_max(team, week)`) orders by week
 -- number across every season at once and would hand a multi-season player his older details. The
 -- values would all look individually plausible; only the pairing would be wrong.
 with most_recent as (

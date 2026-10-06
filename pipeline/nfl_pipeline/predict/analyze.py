@@ -7,7 +7,7 @@ not whatever happened to be memorable.
 
 It is deliberately blunt about how little room there is. The research measured the total remaining
 headroom at under 7%, and found error spread evenly across situations rather than concentrated in
-nameable ones — so a report that highlighted "interesting" cases would mostly be highlighting noise
+nameable ones, so a report that highlighted "interesting" cases would mostly be highlighting noise
 and inviting exactly the kind of story-telling the promotion gate exists to reject.
 """
 
@@ -61,7 +61,7 @@ class FailureReport:
             "",
             "## The ten biggest misses",
             "",
-            "Individually these are mostly noise — a single game is not evidence. They are here to",
+            "Individually these are mostly noise: a single game is not evidence. They are here to",
             "read for a *pattern*, and a pattern is only worth proposing if it can be written as a",
             "feature that would have been computable before kickoff.",
             "",

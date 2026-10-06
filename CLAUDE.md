@@ -1,8 +1,9 @@
 # NFL Player Performance
 
-Daily NFL stats pipeline that ranks players by position, with a website and (later) weekly predictions.
+Daily NFL stats pipeline that ranks players by position, with a website, weekly predictions that grade
+themselves, and a deployment on AWS. The site is live at https://nflstats.johnwasikye.com.
 The full build plan lives outside this repo at `C:\Users\johnw\OneDrive\Documents\nfl player performance\BUILD_PLAN.md`.
-Follow its phase order (1A local pipeline, 1B website, 1C AWS, 1D predictions, 1E launch polish, 2 app).
+Follow its phase order (1A local pipeline, 1B website, 1C weekly predictions, 1D AWS, 1E launch polish, 2 app).
 **At the start of a session, read `C:\Users\johnw\OneDrive\Documents\nfl player performance\SESSION_CONTEXT.md`**:
 current status, decisions, open questions, and practical gotchas. Keep it up to date as work progresses.
 
@@ -15,7 +16,10 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
 - Backtest (needs a built warehouse; writes docs/backtest.md): `.venv\Scripts\nfl-pipeline backtest`
 - Weekly projections (predict, grade, publish): `.venv\Scripts\nfl-pipeline predict`.
   Add `--lock` ONLY before the week's first kickoff: a locked week cannot be rewritten, and that is
-  what makes the Report card honest.
+  what makes the Report card honest. `--lock-when-due` is the unattended form: it locks only inside the
+  24 hours before the first kickoff, publishes an existing lock instead of recomputing it, and refuses
+  (exit 1, writes nothing) once kickoff has passed with the week unlocked.
+- What AWS runs each day: `nfl-pipeline daily`, which is `run` followed by `predict --lock-when-due`.
 - The learning loop: `.venv\Scripts\nfl-pipeline experiment` writes `docs/last-week.md` (where the
   model missed, and which datasets are still unused). Read it, add one candidate to
   `pipeline/nfl_pipeline/predict/proposals.py`, then `nfl-pipeline experiment --run <name>`.
@@ -24,6 +28,11 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
 - Just the ingest: `.venv\Scripts\nfl-pipeline ingest --datasets schedules`
 - dbt (from the repo root, with `.venv\Scripts` on PATH): `dbt build --project-dir dbt --profiles-dir dbt`.
   After changing a seed's columns, run `dbt seed --full-refresh` or the old columns stay.
+- Infrastructure (Terraform, from `infra/`): run `aws sso login --profile nfl_player_stats`, set
+  `$env:AWS_PROFILE = "nfl_player_stats"`, then `terraform plan`. Terraform is applied by hand and CI only
+  plans. The code names no AWS profile, so CI and the laptop run the same files. Details: `infra/README.md`.
+- Changes reach `main` by pull request only (branch protection; `test`, `web` and `infra` must pass). Merging
+  deploys: the image goes to ECR as `:latest` and the commit SHA, and the site goes to S3 and CloudFront.
 - Docker stack (MinIO plus the pipeline): `docker compose up -d minio minio-init`, then
   `docker compose run --rm pipeline ingest --datasets schedules`
 
@@ -55,6 +64,11 @@ current status, decisions, open questions, and practical gotchas. Keep it up to 
 - Website: static export, data fetched in the browser from `/data/v1`. Avatars are initials on team colors
   (no photos or logos). Keep `web/lib/types.ts` in step with `pipeline/nfl_pipeline/contract.py`.
 - Website tests must not depend on live data: e2e uses `web/e2e/fixtures`.
+- Voice for anything public (site copy, docs, README, ledger wording): first person singular, plain words, no
+  "we" or "our", no em dashes or spaced hyphens used as dashes, and no filler such as "honest", "genuinely",
+  "actually" or "simply". The reader is a data engineer or a recruiter. Do not add narrating code comments.
+- Held-back dependencies and the reasons are in `docs/dependencies.md`. Check it before bumping TypeScript,
+  `@types/node` or ESLint.
 
 <!-- BEGIN AWS Agent Toolkit rules -->
 **Project override:** infrastructure for this project is written in **Terraform** (`infra/`), not CDK or

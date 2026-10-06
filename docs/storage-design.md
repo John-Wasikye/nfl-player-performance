@@ -1,6 +1,7 @@
 # Storage design: running on an ephemeral filesystem
 
 Decided 2026-10-01, before any Terraform was written, and **confirmed by the owner the same day**.
+Built and running on AWS since 2026-10-05, with the layout below unchanged.
 This governs `config.py`, `storage.py`, `dbt/profiles.yml` and `predict/weekly.py`, and it is the thing
 to read before changing where any file lives.
 
@@ -16,9 +17,9 @@ question below is answered.
 
 Every piece of state is one of two things, and the two get opposite treatment:
 
-- **Derived** - reproducible from code plus raw data. Disposable. Correctness comes from being able
+- **Derived:** reproducible from code plus raw data. Disposable. Correctness comes from being able
   to rebuild it, so it needs no protection at all.
-- **A record** - its value *is* that it cannot change after the fact. Locked predictions and the
+- **A record:** its value *is* that it cannot change after the fact. Locked predictions and the
   experiment ledger are the only records in this project, and they are the reason the Report card
   means anything. These need an integrity mechanism, not a convention.
 
@@ -64,7 +65,7 @@ Accepted consequence: the daily run always pays a full dbt build. That is alread
 ### Corollary: `backtest` and `experiment` move to AWS too
 
 They are CPU work on the same image, so they become **on-demand Fargate tasks** rather than terminal
-commands - same image, different entry command, triggered from the CLI or a GitHub Actions
+commands: same image, different entry command, triggered from the CLI or a GitHub Actions
 "run workflow" button. Their output (`docs/backtest.md`, `docs/last-week.md`) is written to S3 and the
 git mirror in decision 4 brings it into the repo. This is the point of the snapshot above.
 
@@ -78,8 +79,8 @@ reads and globs `s3://` paths, and `filename = true` returns the full `s3://` UR
 
 `dbt/profiles.yml` grows `extensions: [httpfs]` and a second target:
 
-- `dev` - local files, exactly as today.
-- `aws` - a `secrets:` entry of `type: s3` with `provider: credential_chain`, so the **Fargate task
+- `dev`: local files, exactly as today.
+- `aws`: a `secrets:` entry of `type: s3` with `provider: credential_chain`, so the **Fargate task
   role** supplies credentials. No access keys anywhere.
 - MinIO keeps working with an explicit key/secret plus `endpoint`, `url_style: path`, `use_ssl: false`.
 
@@ -100,8 +101,8 @@ unenforced. Two **complementary** controls replace it, and both are needed:
 They are not redundant: Object Lock protects *a version* and explicitly does not stop new versions
 being written, while a conditional write does not stop a delete. Neither alone gives write-once.
 
-**Governance mode, not compliance - confirmed by the owner.** Overriding governance needs the `s3:BypassGovernanceRetention`
-permission plus an explicit request header, and the override lands in CloudTrail - that is
+**Governance mode, not compliance (confirmed by the owner).** Overriding governance needs the `s3:BypassGovernanceRetention`
+permission plus an explicit request header, and the override lands in CloudTrail, and that is
 tamper-*evident*, which is the property this project actually claims. Compliance mode cannot be
 overridden by anyone including the account root, and AWS documents the only early escape as deleting
 the AWS account. Too sharp an edge for a one-person project where a bad write is a realistic Tuesday.
@@ -111,7 +112,7 @@ bucket is awkward at best.
 
 Existing semantics are preserved exactly: re-locking a week with identical numbers is fine, because
 pipeline runs get retried; re-locking with different numbers raises. On a 412, fetch the stored object
-and compare - identical means log and return it, different means raise, same as today.
+and compare: identical means log and return it, different means raise, same as today.
 
 ## Decision 4: git stays the public copy of the records (confirmed by the owner)
 
@@ -120,18 +121,18 @@ the author. That is worth keeping, and a Fargate task cannot commit to git.
 
 So: **S3 is the runtime store, git is the published record.** A scheduled GitHub Actions job pulls new
 locked weeks and the ledger out of S3 and commits them. If the mirror fails, the authoritative object
-still exists in S3 under Object Lock and nothing is lost - the mirror is for publication, not
+still exists in S3 under Object Lock and nothing is lost, because the mirror is for publication, not
 durability.
 
 ## Decision 5: `Storage` grows two methods rather than a second abstraction
 
 The protocol is `put_bytes` / `get_bytes`. Add:
 
-- `put_bytes_if_absent(key, data) -> bool` - S3 passes `IfNoneMatch="*"` and maps 412 to `False`.
+- `put_bytes_if_absent(key, data) -> bool`: S3 passes `IfNoneMatch="*"` and maps 412 to `False`.
   Local uses `os.open(..., O_CREAT | O_EXCL)` and maps `FileExistsError` to `False`. Note it must
   **not** reuse the temp-file-then-`os.replace` pattern from `put_bytes`: `os.replace` overwrites,
   which is the exact opposite of what is wanted here.
-- `list_keys(prefix) -> list[str]` - needed to discover which weeks are locked. S3 paginates
+- `list_keys(prefix) -> list[str]`: needed to discover which weeks are locked. S3 paginates
   `list_objects_v2`; local uses `rglob`.
 
 Then `lock_path` / `lock_week` / `load_locked` and `Ledger` take a `Storage` and a key prefix instead
@@ -152,12 +153,15 @@ One bucket per lifecycle, because the policies genuinely differ:
 
 | Bucket | Contents | Policy |
 |---|---|---|
-| `nfl-raw` | raw snapshots, ingest manifests, and the `warehouse/` snapshot | versioned; lifecycle expires old snapshots and noncurrent versions, keeping only the few most recent warehouse copies |
+| `nfl-raw` | raw snapshots, ingest manifests, and the `warehouse/` snapshot | versioned; noncurrent versions expire after 30 days, current raw snapshots are kept |
 | `nfl-records` | locked predictions, ledger | versioned + **Object Lock (governance)**; no expiry; tiny |
-| `nfl-site` | the static site **and** published JSON under `data/v1/` | versioned; CloudFront OAC origin; short noncurrent expiry |
+| `nfl-site` | the static site **and** published JSON under `data/v1/` | versioned; CloudFront OAC origin; noncurrent versions expire after 14 days |
 | `nfl-tfstate` | Terraform state | versioned, encrypted, private, Terraform-native locking |
 
 All four get S3 Block Public Access; CloudFront OAC is the only reader of `nfl-site`.
+
+The real bucket names carry the prefix `jw-nfl-player-stats-`: `-raw`, `-records`, `-site` and `-tfstate`.
+The records bucket applies 365 days of governance retention to every version written.
 
 **Encryption:** SSE-S3, which is free. KMS is optional: a customer-managed key costs $1 a month plus $0.03 per 10,000 requests (the first 20,000 a month are free), per the KMS pricing page checked 2026-10-05. The only bucket where it earns its place is `nfl-records`, because key use shows in CloudTrail. Adding it there is about $1 a month; adding it everywhere is about $4 and not worth it. See the build plan, section 13, "Encryption and KMS".
 
@@ -165,21 +169,21 @@ All four get S3 Block Public Access; CloudFront OAC is the only reader of `nfl-s
 
 **Publishing moves to the `data/v1/` prefix of the site bucket**, replacing `published/v1`. The
 website already fetches from `/data/v1`, so one bucket and one CloudFront origin serves both the HTML
-and the JSON - no second origin, no extra cache behaviour, and the path the browser requests is the
+and the JSON, with no second origin, no extra cache behaviour, and the path the browser requests is the
 path the publish step wrote. `meta.json` is still written last.
 
 ## What stays on the laptop, and why
 
 After this design, the only thing that still needs the owner's machine is the **weekly Claude analyst
-session** - the part that reads `docs/last-week.md` and writes one candidate into
+session**, the part that reads `docs/last-week.md` and writes one candidate into
 `predict/proposals.py`. It stays in Claude Code deliberately, because phase 1C set no
 `ANTHROPIC_API_KEY`: Claude runs inside the Pro plan at no per-token cost. Automating it in AWS means
-paying API rates, and as an interactive multi-turn session that is roughly **$2-6 a week** - several
+paying API rates, and as an interactive multi-turn session that is roughly **$2 to $6 a week**, several
 times the entire rest of the project's AWS bill. See BUILD_PLAN.md section 13 for the breakdown and
 the cheaper single-call shape, if that ever becomes worth it.
 
-Everything else - the daily pipeline, the weekly predict/lock/grade, the backtest, and the experiment
-harness - runs in AWS. Website development and the test suites are development work and stay local by
+Everything else (the daily pipeline, the weekly predict/lock/grade, the backtest, and the experiment
+harness) runs in AWS. Website development and the test suites are development work and stay local by
 nature.
 
 ### Later: moving the analyst session to AWS

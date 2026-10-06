@@ -6,7 +6,7 @@ through the same walk-forward replay and asks the promotion gate to decide. Noth
 change on its own.
 
 Claude's role is to write the functions. It never scores them, never sees a decision it can argue
-with, and never touches a published number — the research found that every version of "let the model
+with, and never touches a published number. The research found that every version of "let the model
 adjust itself" made predictions worse, so the only job left for judgement is proposing what to try.
 
 Two rules keep a candidate honest, and both are enforced rather than documented:
@@ -147,7 +147,7 @@ def _reject_forbidden_reads(candidate: Candidate, features: pd.DataFrame) -> Non
 
     Checked by running it on a frame whose outcome column has been blanked. A candidate that reads
     the outcome will either fail outright or produce different values, and either way it is not a
-    feature — it is the label wearing a hat.
+    feature: it is the label wearing a hat.
     """
     blinded = features.copy()
     for column in FORBIDDEN:

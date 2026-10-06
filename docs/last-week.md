@@ -22,7 +22,7 @@
 
 ## The ten biggest misses
 
-Individually these are mostly noise — a single game is not evidence. They are here to
+Individually these are mostly noise: a single game is not evidence. They are here to
 read for a *pattern*, and a pattern is only worth proposing if it can be written as a
 feature that would have been computable before kickoff.
 

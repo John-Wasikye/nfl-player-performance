@@ -66,7 +66,7 @@ next_week as (
 -- recording: "has not appeared in a box score lately" and "is not on the team" are indistinguishable
 -- in stats data, so retired players kept being projected. Philip Rivers, whose last game was in
 -- 2025, was being projected for 2026 because the recency bound compared `season * 100 + week`
--- values, and that is not a distance — the gap from 2025 week 17 to 2026 week 2 came out as 85,
+-- values, and that is not a distance: the gap from 2025 week 17 to 2026 week 2 came out as 85,
 -- smaller than the 120 the rule allowed, so an entire offseason counted as no time at all.
 --
 -- The roster file answers the question directly and needs no arithmetic. Only active players are
