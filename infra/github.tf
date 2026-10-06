@@ -11,9 +11,12 @@
 #   github-deploy  main branch only: can push the pipeline image and the website, nothing else.
 # Neither can touch IAM, billing, the records bucket, or the published data.
 
-variable "github_repository" {
+# This repository issues "immutable" subject claims: the owner and repository appear by numeric ID as well
+# as by name, so deleting the repository and creating another with the same name would not match. The
+# value is what `gh api repos/OWNER/REPO/actions/oidc/customization/sub` reports as sub_claim_prefix.
+variable "github_subject_prefix" {
   type    = string
-  default = "John-Wasikye/nfl-player-performance"
+  default = "repo:John-Wasikye@171445038/nfl-player-performance@1376487382"
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
@@ -23,8 +26,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 data "aws_iam_policy_document" "github_trust" {
   for_each = {
-    plan   = "repo:${var.github_repository}:pull_request"
-    deploy = "repo:${var.github_repository}:ref:refs/heads/main"
+    plan   = "${var.github_subject_prefix}:pull_request"
+    deploy = "${var.github_subject_prefix}:ref:refs/heads/main"
   }
 
   statement {
