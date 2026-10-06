@@ -41,6 +41,26 @@ test.describe("Projections", () => {
     await expect(page.getByText("Four games in five should land between")).toBeVisible();
   });
 
+  test("offers the report card and the method as buttons that are big enough to tap", async ({ page }) => {
+    await page.goto("/predictions/QB/");
+    const accuracy = page.getByRole("link", { name: "How accurate have these been?" });
+    const method = page.getByRole("link", { name: "How these are made" });
+
+    await expect(accuracy).toHaveAttribute("href", "/report-card/");
+    await expect(method).toHaveAttribute("href", "/methodology/predictions/");
+    for (const button of [accuracy, method]) {
+      const box = await button.boundingBox();
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test("the key explains PPR and what preliminary means", async ({ page }) => {
+    await page.goto("/predictions/QB/");
+
+    await expect(page.getByText("Points per reception: one point for every catch.")).toBeVisible();
+    await expect(page.getByText(/Recalculated each day until the week's first kickoff/)).toBeVisible();
+  });
+
   test("links to the accuracy record", async ({ page }) => {
     await page.goto("/predictions/QB/");
     await page.getByRole("link", { name: "How accurate have these been?" }).click();

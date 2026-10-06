@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { initials } from "@/lib/format";
 import { readableTextColor, teamColor } from "@/lib/teams";
 import { POSITION_NAMES, POSITIONS, type Position } from "@/lib/types";
-import { AlertIcon, ArrowDownIcon, ArrowUpIcon, InfoIcon } from "./icons";
+import { AlertIcon, ArrowDownIcon, ArrowRightIcon, ArrowUpIcon, InfoIcon } from "./icons";
 
 export function Card({
   children,
@@ -71,6 +71,28 @@ export function Badge({
 }
 
 /** A player avatar: initials on the team color. No photos, no logos. */
+/** A link that looks and behaves like a button: bordered, with an icon and a trailing arrow. */
+export function ActionLink({
+  href,
+  icon,
+  children,
+}: {
+  href: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-h-11 w-full items-center gap-2 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-fg shadow-card transition-colors hover:border-accent hover:text-accent sm:inline-flex sm:w-auto"
+    >
+      {icon}
+      <span className="flex-1 sm:flex-none">{children}</span>
+      <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent motion-reduce:transition-none" />
+    </Link>
+  );
+}
+
 export function Avatar({
   name,
   team,
