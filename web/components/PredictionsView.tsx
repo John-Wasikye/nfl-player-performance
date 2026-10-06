@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useJson } from "@/lib/api";
 import { formatPercent, formatPoints } from "@/lib/format";
+import { BookIcon, ChartIcon } from "./icons";
 import {
   POSITION_NAMES,
   type PredictedPlayer,
@@ -11,6 +12,7 @@ import {
   type Position,
 } from "@/lib/types";
 import {
+  ActionLink,
   Avatar,
   Badge,
   Card,
@@ -99,44 +101,36 @@ function ColumnHeadings() {
   );
 }
 
+const KEY_ITEMS: { term: string; text: string }[] = [
+  { term: "Projected", text: "The most likely PPR fantasy score for this game." },
+  {
+    term: "Range",
+    text: "Four games in five should land between these two numbers. The dot marks the projection inside it.",
+  },
+  {
+    term: "% to play",
+    text: "Shown only for players on the injury report. The projection above it assumes he plays.",
+  },
+  { term: "Order", text: "Highest projected first, after discounting anyone who might not play." },
+  { term: "PPR", text: "Points per reception: one point for every catch." },
+  {
+    term: "Preliminary",
+    text: "Recalculated each day until the week's first kickoff. Once locked, a projection never changes.",
+  },
+];
+
 function Key() {
   return (
     <Card as="section" className="mb-4 p-4">
       <h2 className="text-sm font-semibold">What the numbers mean</h2>
-      <dl className="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-        <div className="flex gap-2">
-          <dt className="shrink-0 font-medium">Projected</dt>
-          <dd className="text-muted">
-            The most likely PPR fantasy score for this game.
-          </dd>
-        </div>
-        <div className="flex gap-2">
-          <dt className="shrink-0 font-medium">Range</dt>
-          <dd className="text-muted">
-            Four games in five should land between these two numbers. The dot marks the projection
-            inside it.
-          </dd>
-        </div>
-        <div className="flex gap-2">
-          <dt className="shrink-0 font-medium">% to play</dt>
-          <dd className="text-muted">
-            Shown only for players on the injury report. The projection above it assumes he plays.
-          </dd>
-        </div>
-        <div className="flex gap-2">
-          <dt className="shrink-0 font-medium">Order</dt>
-          <dd className="text-muted">
-            Highest projected first, after discounting anyone who might not play.
-          </dd>
-        </div>
+      <dl className="mt-3 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+        {KEY_ITEMS.map(({ term, text }) => (
+          <div key={term} className="grid grid-cols-[5.5rem_1fr] gap-3">
+            <dt className="font-medium text-fg">{term}</dt>
+            <dd className="text-muted">{text}</dd>
+          </div>
+        ))}
       </dl>
-      <p className="mt-3 text-xs text-muted">
-        PPR means one point per reception.{" "}
-        <Link href="/methodology/predictions/" className="text-accent underline underline-offset-2">
-          How these are produced
-        </Link>
-        .
-      </p>
     </Card>
   );
 }
@@ -162,21 +156,25 @@ export function PredictionsView({ position }: { position: Position }) {
         }
       >
         {index.data && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {index.data.status === "locked" ? (
-              <Badge tone="accent">Locked before kickoff</Badge>
-            ) : (
-              <Badge tone="warn">Preliminary, may still change</Badge>
-            )}
-            <Link href="/report-card/" className="text-sm text-muted underline-offset-2 hover:underline">
-              How accurate have these been?
-            </Link>
-            <Link
-              href="/methodology/predictions/"
-              className="text-sm text-muted underline-offset-2 hover:underline"
-            >
-              How these are made
-            </Link>
+          <div className="mt-4 space-y-3">
+            <div>
+              {index.data.status === "locked" ? (
+                <Badge tone="accent">Locked before kickoff</Badge>
+              ) : (
+                <Badge tone="warn">Preliminary, may still change</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ActionLink href="/report-card/" icon={<ChartIcon className="h-4 w-4 text-accent" />}>
+                How accurate have these been?
+              </ActionLink>
+              <ActionLink
+                href="/methodology/predictions/"
+                icon={<BookIcon className="h-4 w-4 text-accent" />}
+              >
+                How these are made
+              </ActionLink>
+            </div>
           </div>
         )}
       </PageHeader>

@@ -76,3 +76,27 @@ export const SortIcon = ({ direction, ...p }: SVGProps<SVGSVGElement> & { direct
     <path d="m8 15 4 4 4-4" opacity={direction === "asc" ? 0.3 : 1} />
   </Icon>
 );
+
+export const ArrowRightIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M5 12h14" />
+    <path d="m13 6 6 6-6 6" />
+  </Icon>
+);
+
+export const ChartIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M4 20V10" />
+    <path d="M10 20V4" />
+    <path d="M16 20v-7" />
+    <path d="M22 20H2" />
+  </Icon>
+);
+
+export const BookIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
+    <path d="M4 19V5" />
+    <path d="M9 7h6" />
+  </Icon>
+);

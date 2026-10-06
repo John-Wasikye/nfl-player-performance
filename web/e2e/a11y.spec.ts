@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { openSearchWithSlash } from "./helpers";
 
 // axe checks (WCAG 2.2 A and AA) on each kind of page, in both themes. They don't replace testing
 // with a screen reader.
@@ -91,8 +92,8 @@ test("the search dialog is accessible when open", async ({ page }) => {
     .getByRole("region", { name: "Top players by position" })
     .getByRole("heading", { level: 3, name: "Kickers" })
     .waitFor();
-  await page.keyboard.press("/");
-  await page.getByRole("dialog").getByRole("textbox").fill("allen");
+  const dialog = await openSearchWithSlash(page);
+  await dialog.getByRole("textbox").fill("allen");
   await page.getByRole("dialog").getByRole("link", { name: /Josh Allen/ }).waitFor();
 
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();

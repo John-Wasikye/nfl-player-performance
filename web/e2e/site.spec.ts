@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openSearchWithSlash } from "./helpers";
 
 // The fixtures are a fixed snapshot: 2026 season, weeks 1-2, week 2 in progress. Josh Allen is the
 // top-ranked quarterback in both views.
@@ -182,11 +183,8 @@ test.describe("Player page", () => {
 test.describe("Search", () => {
   test("finds a player with the keyboard shortcut and jumps to them", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("heading", { level: 3, name: "Kickers" }).waitFor(); // hydrated and loaded
-    await page.keyboard.press("/");
-
-    const dialog = page.getByRole("dialog", { name: "Search players" });
-    await expect(dialog).toBeVisible();
+    await page.getByRole("region", { name: "Top players by position" }).getByRole("heading", { level: 3, name: "Kickers" }).waitFor(); // loaded
+    const dialog = await openSearchWithSlash(page);
     await dialog.getByRole("textbox").fill("allen");
     await dialog.getByRole("link", { name: /Josh Allen/ }).click();
 
@@ -196,7 +194,7 @@ test.describe("Search", () => {
 
   test("closes with Escape and reopens with Ctrl+K", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("heading", { level: 3, name: "Kickers" }).waitFor();
+    await page.getByRole("region", { name: "Top players by position" }).getByRole("heading", { level: 3, name: "Kickers" }).waitFor();
     await page.getByRole("button", { name: "Search players" }).click();
     const dialog = page.getByRole("dialog", { name: "Search players" });
     await expect(dialog).toBeVisible();
@@ -210,9 +208,9 @@ test.describe("Search", () => {
 
   test("says when nothing matches", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("heading", { level: 3, name: "Kickers" }).waitFor();
-    await page.keyboard.press("/");
-    await page.getByRole("dialog").getByRole("textbox").fill("qqqqq");
+    await page.getByRole("region", { name: "Top players by position" }).getByRole("heading", { level: 3, name: "Kickers" }).waitFor();
+    const dialog = await openSearchWithSlash(page);
+    await dialog.getByRole("textbox").fill("qqqqq");
 
     await expect(page.getByText(/No players match/)).toBeVisible();
   });
@@ -364,22 +362,29 @@ test.describe("Freshness", () => {
   // Every publish that the gate refuses leaves the old files live, so the banner is the only thing
   // telling a visitor the numbers are old. It has to follow meta.json's generated_at, on any page,
   // and flip at the 36 hour line rather than at some nearby number.
-  const ageMeta = (page: Page, hours: number) =>
-    page.route("**/data/v1/meta.json", async (route) => {
+  // One handler for the whole test, with the age changed between loads. Removing a handler and adding
+  // another on the same page let a request still in flight from the first load reach the new one,
+  // which failed with "Route is already handled" about four runs in ten under load.
+  const ageMeta = async (page: Page, initialHours: number) => {
+    let hours = initialHours;
+    await page.route("**/data/v1/meta.json", async (route) => {
       const response = await route.fetch();
       const meta = await response.json();
       meta.generated_at = new Date(Date.now() - hours * 3600 * 1000).toISOString();
       await route.fulfill({ response, json: meta });
     });
+    return (next: number) => {
+      hours = next;
+    };
+  };
 
   test("stays quiet at 35 hours and appears at 37, on a page other than the home page", async ({ page }) => {
-    await ageMeta(page, 35);
+    const setAge = await ageMeta(page, 35);
     await page.goto("/rankings/QB/");
     await expect(page.getByRole("heading", { level: 1, name: "Quarterbacks" })).toBeVisible();
     await expect(page.getByText(/were last updated/)).toHaveCount(0);
 
-    await page.unroute("**/data/v1/meta.json");
-    await ageMeta(page, 37);
+    setAge(37);
     await page.goto("/rankings/QB/");
     await expect(page.getByText(/were last updated/)).toBeVisible();
   });
