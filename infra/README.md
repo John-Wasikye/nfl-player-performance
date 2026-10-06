@@ -11,6 +11,13 @@ cd infra/bootstrap; terraform init; terraform apply
 cd ..; terraform init; terraform plan; terraform apply
 ```
 
-Not here yet: ECS cluster and task definition (step 14), EventBridge and alarms (step 15), CloudFront,
-the GitHub OIDC role (step 18). The $5 budget and billing alarm were made by hand in step 12 and are not
+Also here: the ECS cluster and task, the daily schedule and alarms (`monitoring.tf`), and the CloudFront
+distribution in front of the private site bucket (`cloudfront.tf`). Until the custom domain exists (step 19)
+the site is on the distribution's own `*.cloudfront.net` address (`terraform output site_url`).
+
+Deploy the website with `cd web; npm run build; AWS_PROFILE=nfl_player_stats bash scripts/deploy-site.sh`.
+It leaves `data/v1/` alone, because the pipeline owns that prefix. Each new pipeline image needs a new
+`image_tag` (ECR tags are immutable).
+
+Not here yet: the GitHub OIDC role (step 18). The $5 budget and billing alarm were made by hand in step 12 and are not
 managed here.

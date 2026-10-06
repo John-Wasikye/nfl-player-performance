@@ -70,6 +70,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "all" {
 data "aws_iam_policy_document" "tls_only" {
   for_each = local.bucket_ids
 
+  # The site bucket also lets its CloudFront distribution read it (cloudfront.tf).
+  source_policy_documents = each.key == "site" ? [data.aws_iam_policy_document.cloudfront_read.json] : []
+
   statement {
     sid       = "DenyInsecureTransport"
     effect    = "Deny"
@@ -87,7 +90,6 @@ data "aws_iam_policy_document" "tls_only" {
   }
 }
 
-# The site bucket's CloudFront OAC statement is added in the CloudFront step and will extend this policy.
 resource "aws_s3_bucket_policy" "tls_only" {
   for_each = local.bucket_ids
   bucket   = each.value

@@ -48,5 +48,5 @@ variable "task_memory" {
 variable "image_tag" {
   description = "ECR tags are immutable, so every pushed image needs a new tag."
   type        = string
-  default     = "v3"
+  default     = "v4"
 }

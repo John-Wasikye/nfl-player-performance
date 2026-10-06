@@ -43,11 +43,13 @@ class FakeS3Client:
 
     def __init__(self):
         self.objects: dict[tuple[str, str], bytes] = {}
+        self.content_types: dict[tuple[str, str], str | None] = {}
 
-    def put_object(self, Bucket, Key, Body, IfNoneMatch=None):
+    def put_object(self, Bucket, Key, Body, IfNoneMatch=None, ContentType=None):
         if IfNoneMatch == "*" and (Bucket, Key) in self.objects:
             raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
         self.objects[(Bucket, Key)] = Body
+        self.content_types[(Bucket, Key)] = ContentType
 
     def list_objects_v2(self, Bucket, Prefix="", ContinuationToken=None):
         keys = sorted(k for b, k in self.objects if b == Bucket and k.startswith(Prefix))
@@ -202,3 +204,16 @@ def test_the_contract_actually_catches_a_backend_that_overwrites():
 
     with pytest.raises(AssertionError):
         check_write_once_contract(Overwrites(Path(tempfile.mkdtemp())))
+
+
+def test_json_is_stored_with_a_json_content_type_and_other_keys_are_left_alone():
+    client = FakeS3Client()
+    storage = S3Storage("b", client=client)
+
+    storage.put_bytes("data/v1/meta.json", b"{}")
+    assert storage.put_bytes_if_absent("2026/week_01.json", b"{}")
+    storage.put_bytes("warehouse/warehouse.duckdb", b"x")
+
+    assert client.content_types[("b", "data/v1/meta.json")] == "application/json"
+    assert client.content_types[("b", "2026/week_01.json")] == "application/json"
+    assert client.content_types[("b", "warehouse/warehouse.duckdb")] is None

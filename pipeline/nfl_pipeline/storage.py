@@ -85,6 +85,11 @@ class LocalStorage:
         return sorted(key for key in keys if key.startswith(prefix))
 
 
+def _content_type(key: str) -> dict[str, str]:
+    """Without this S3 stores JSON as binary/octet-stream, which is what CloudFront then serves."""
+    return {"ContentType": "application/json"} if key.endswith(".json") else {}
+
+
 class S3Storage:
     def __init__(
         self, bucket: str, endpoint_url: str | None = None, client: Any | None = None
@@ -94,7 +99,7 @@ class S3Storage:
 
     def put_bytes(self, key: str, data: bytes) -> None:
         _validate_key(key)
-        self._client.put_object(Bucket=self._bucket, Key=key, Body=data)
+        self._client.put_object(Bucket=self._bucket, Key=key, Body=data, **_content_type(key))
 
     def get_bytes(self, key: str) -> bytes | None:
         _validate_key(key)
@@ -109,7 +114,9 @@ class S3Storage:
     def put_bytes_if_absent(self, key: str, data: bytes) -> bool:
         _validate_key(key)
         try:
-            self._client.put_object(Bucket=self._bucket, Key=key, Body=data, IfNoneMatch="*")
+            self._client.put_object(
+                Bucket=self._bucket, Key=key, Body=data, IfNoneMatch="*", **_content_type(key)
+            )
         except ClientError as error:
             # 412 is "the key already exists". 409 means another write to the same key was in
             # flight; that is not an answer, so it is raised rather than guessed at.
