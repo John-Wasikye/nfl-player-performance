@@ -22,7 +22,7 @@ class Model(BaseModel):
 
 
 class CompositeView(Model):
-    """Composite performance score: 70% efficiency and 30% production by default."""
+    """Composite performance score: 20% efficiency and 80% production by default."""
 
     score: float | None = Field(ge=0, le=100)
     efficiency: float | None = Field(ge=0, le=100)

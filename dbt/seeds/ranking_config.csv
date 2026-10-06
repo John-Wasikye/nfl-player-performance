@@ -1,6 +1,6 @@
 position_group,min_role_per_week,efficiency_weight,production_weight
-QB,14,0.7,0.3
-RB,6,0.7,0.3
-WR,3,0.7,0.3
-TE,2.5,0.7,0.3
-K,2.5,0.7,0.3
+QB,14,0.2,0.8
+RB,6,0.2,0.8
+WR,3,0.2,0.8
+TE,2.5,0.2,0.8
+K,2.5,0.2,0.8

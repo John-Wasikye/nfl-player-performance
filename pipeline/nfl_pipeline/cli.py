@@ -192,7 +192,12 @@ def _run_publish(settings: Settings, now: datetime) -> int:
         print("publish failed: no warehouse snapshot and the rebuild failed", file=sys.stderr)
         return 1
     try:
-        summary = publish(settings.warehouse_path, build_site_storage(settings), now=now)
+        summary = publish(
+            settings.warehouse_path,
+            build_site_storage(settings),
+            lake=build_storage(settings),
+            now=now,
+        )
     except PublishError as error:
         print(f"publish failed: {error}", file=sys.stderr)
         return 1

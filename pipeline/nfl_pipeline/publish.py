@@ -161,7 +161,7 @@ def _backtest_summary(storage: Storage) -> dict | None:
         return None
 
 
-def _methodology(connection: duckdb.DuckDBPyConnection, storage: Storage) -> Methodology:
+def _methodology(connection: duckdb.DuckDBPyConnection, lake: Storage) -> Methodology:
     config = _rows(connection, "select * from ranking_config order by position_group")
     weights = _rows(connection, "select * from ranking_weights order by position_group, metric")
     positions = []
@@ -190,7 +190,7 @@ def _methodology(connection: duckdb.DuckDBPyConnection, storage: Storage) -> Met
         schema_version=SCHEMA_VERSION,
         positions=positions,
         kicker_scoring=KICKER_SCORING,
-        backtest=_backtest_summary(storage),
+        backtest=_backtest_summary(lake),
     )
 
 
@@ -355,9 +355,17 @@ def _check_rankings(file: RankingsFile) -> list[str]:
 
 
 def build_files(
-    connection: duckdb.DuckDBPyConnection, storage: Storage, *, season: int, now: datetime
+    connection: duckdb.DuckDBPyConnection,
+    lake: Storage,
+    *,
+    season: int,
+    now: datetime,
 ) -> tuple[dict[str, bytes], PublishSummary]:
-    """Build every published file in memory and validate it. Raises PublishError on any problem."""
+    """Build every published file in memory and validate it. Raises PublishError on any problem.
+
+    `lake` is where the ingest state and the backtest summary live (the raw store). The published
+    files are returned, not written, so nothing here touches the site store.
+    """
     try:
         weeks = [
             r["week"]
@@ -484,7 +492,7 @@ def build_files(
         )
 
     try:
-        files[f"{prefix}/methodology.json"] = _json(_methodology(connection, storage))
+        files[f"{prefix}/methodology.json"] = _json(_methodology(connection, lake))
     except duckdb.Error as error:
         problems.append(f"could not read the ranking settings: {error}")
 
@@ -503,7 +511,7 @@ def build_files(
         schema_version=SCHEMA_VERSION,
         generated_at=now.isoformat(),
         pipeline_version=__version__,
-        data_as_of=_data_as_of(storage),
+        data_as_of=_data_as_of(lake),
         season=season,
         latest_week=latest_week,
         week_complete=week_complete,
@@ -518,10 +526,16 @@ def publish(
     warehouse_path: Path,
     storage: Storage,
     *,
+    lake: Storage,
     now: datetime,
     season: int | None = None,
 ) -> PublishSummary:
-    """Validate and publish. `meta.json` is written last, after every other file."""
+    """Validate and publish to `storage`, the site. `meta.json` is written last.
+
+    `lake` is the raw store, which holds the ingest state and the backtest summary. It is a
+    separate, required argument because the two stores are different buckets on AWS, and reading
+    either of those files from the site store quietly returns nothing.
+    """
     if not Path(warehouse_path).exists():
         raise PublishError(f"warehouse not found: {warehouse_path} (run the dbt build first)")
     connection = duckdb.connect(str(warehouse_path), read_only=True)
@@ -534,7 +548,7 @@ def publish(
             if season is None:
                 raise PublishError("mart_rankings is empty")
         try:
-            files, summary = build_files(connection, storage, season=season, now=now)
+            files, summary = build_files(connection, lake, season=season, now=now)
         except ValidationError as error:
             raise PublishError(
                 f"a file did not match the contract; nothing published: {error}"
