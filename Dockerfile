@@ -15,6 +15,9 @@ RUN apt-get update \
     && useradd --create-home --uid 1000 app
 USER app
 WORKDIR /home/app
+# Fetch DuckDB's S3 extension now: it downloads over plain HTTP, which the task's security group
+# (HTTPS egress only) would block at run time.
+RUN python -c "import duckdb; duckdb.connect().install_extension('httpfs')"
 COPY --chown=app:app dbt ./dbt
 # dbt writes build output and logs next to the project by default; keep them out of the image.
 ENV DBT_DIR=/home/app/dbt \
