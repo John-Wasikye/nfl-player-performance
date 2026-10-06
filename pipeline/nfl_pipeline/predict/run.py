@@ -207,6 +207,51 @@ def _lock_due(warehouse: Path, season: int, week: int, now: datetime) -> bool:
     return state == "lock"
 
 
+def _require_projection_if_lock_is_near(
+    warehouse: Path, season: int, now: datetime, summary: PredictionSummary
+) -> None:
+    """Nothing can be projected. That is only fine while the next kickoff is still far away.
+
+    The roster for a new week is published a few days into it, so for a while after one week ends
+    the feature store has no players for the next. Saying "every week has been played" and exiting 0
+    in that gap would also hide the case that matters: a week about to kick off with nothing to
+    lock. So once the lock window opens, or has passed, this raises.
+    """
+    try:
+        upcoming = duckdb.connect(str(warehouse), read_only=True)
+        try:
+            row = upcoming.execute(
+                "select min(week) from stg_schedules "
+                "where season = ? and game_type = 'REG' and coalesce(is_final, false) = false",
+                [season],
+            ).fetchone()
+        finally:
+            upcoming.close()
+    except duckdb.Error as error:
+        raise PredictionError(
+            f"could not read the schedule to find the next week: {error}"
+        ) from error
+
+    next_week = row[0] if row else None
+    if next_week is None:
+        summary.notes.append(f"every week of {season} has been played; nothing left to project")
+        return
+    kickoff = first_kickoff_utc(warehouse, season, int(next_week))
+    state = lock_state(kickoff, now)
+    if state == "wait":
+        summary.notes.append(
+            f"{season} week {next_week} cannot be projected yet (no players in the feature store, "
+            "usually because its roster is not published); its kickoff is more than a day away"
+        )
+        return
+    raise PredictionError(
+        f"{season} week {next_week} is scheduled but no players could be projected for it, and its "
+        f"first kickoff ({kickoff.isoformat() if kickoff else 'unknown'}) is within a day or has "
+        "passed. The feature store has no rows for that week, usually because nflverse has not "
+        "published its roster. Nothing was locked or published."
+    )
+
+
 def run_predictions(
     settings: Settings,
     storage: Storage,
@@ -246,7 +291,10 @@ def run_predictions(
 
     target = week if week is not None else next_week_to_predict(features, season)
     if target is None:
-        summary.notes.append(f"every week of {season} has been played; nothing left to project")
+        if lock_when_due:
+            _require_projection_if_lock_is_near(warehouse, season, now, summary)
+        else:
+            summary.notes.append(f"every week of {season} has been played; nothing left to project")
     else:
         existing = load_locked(records, season, target) if lock_when_due else None
         if existing is not None:

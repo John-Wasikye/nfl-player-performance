@@ -1,6 +1,7 @@
 # Infrastructure
 
-Terraform for the AWS deployment (build-plan step 13). Region us-east-1, CLI profile `nfl_player_stats`.
+Terraform for the AWS deployment. Region us-east-1, CLI profile `nfl_player_stats`. For what to do when an
+alert email arrives, see `docs/operations.md`.
 
 - `bootstrap/` creates the state bucket once, with local state.
 - The files here create the raw, records and site buckets, the ECR repository and the task roles.
@@ -12,9 +13,12 @@ cd infra/bootstrap; terraform init; terraform apply
 cd ..; terraform init; terraform plan; terraform apply
 ```
 
-Also here: the ECS cluster and task, the daily schedule and alarms (`monitoring.tf`), and the CloudFront
-distribution in front of the private site bucket (`cloudfront.tf`). Until the custom domain exists (step 19)
-the site is on the distribution's own `*.cloudfront.net` address (`terraform output site_url`).
+Also here: the ECS cluster and task (`ecs.tf`), the daily schedule and alarms (`monitoring.tf`), the CloudFront
+distribution in front of the private site bucket (`cloudfront.tf`), and the certificate for
+`nflstats.johnwasikye.com` (`domain.tf`). DNS lives at Cloudflare, so two records are added there by hand: the
+certificate validation record and a CNAME from `nflstats` to the distribution, both set to DNS only.
+
+`run-task.ps1` runs the pipeline task on demand with any command, for example `.un-task.ps1 backtest`.
 
 ## CI/CD (`github.tf`, `.github/workflows/`)
 
@@ -37,5 +41,4 @@ account number stays out of the public logs; it grants nothing.
 The daily task runs `nfl-pipeline daily` from the `:latest` image. Its schedule, alarms and the
 kickoff guard that refuses a late lock are described in `docs/no-silent-failures.md`.
 
-Not here yet: the custom domain and certificate (step 19). The $5 budget and billing alarm were made by hand in step 12 and are not
-managed here.
+The $5 budget and billing alarm were made by hand and are not managed here.

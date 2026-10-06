@@ -126,13 +126,16 @@ dbt/                     staging, marts, ranking and feature models, seeds, data
 web/                     the website (Next.js static export): pages, components, tests
 infra/                   Terraform: buckets, ECR, ECS, schedule, alarms, CloudFront, domain, GitHub OIDC
 research/                the studies behind the prediction design, with results
-docs/                    design notes, the backtest, the research paper, held-back dependencies
+docs/                    operations runbook, design notes, the backtest, the research paper, held-back dependencies
 .github/workflows/       CI, Terraform plan on pull requests, deploy on merge
 ```
 
 ## What is not done
 
 - A mobile app is planned and not started.
+- The job that copies locked forecasts and the ledger from S3 into this repository is not built. S3 is the
+  authoritative copy, so nothing is at risk, but the public git record does not update on its own yet.
+- No frozen comparison model is fitted, so the report card cannot yet show whether the model improves over time.
 - No week has been graded yet. The first graded week will appear on the report card once a locked week ends.
 
 ## Data
