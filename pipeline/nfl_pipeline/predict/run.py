@@ -26,6 +26,7 @@ from nfl_pipeline.contract import (
     PredictionsIndex,
 )
 from nfl_pipeline.predict.features import POSITIONS, load_features
+from nfl_pipeline.predict.kickoff import first_kickoff_utc, lock_state
 from nfl_pipeline.predict.ledger import Ledger
 from nfl_pipeline.predict.report import build_accuracy_file
 from nfl_pipeline.predict.weekly import grade_week, load_locked, lock_week, predict_week
@@ -183,6 +184,29 @@ def grade_finished_weeks(features: pd.DataFrame, records: Storage, season: int) 
     return graded
 
 
+def _lock_due(warehouse: Path, season: int, week: int, now: datetime) -> bool:
+    """True when this run should lock. Raises when a lock would not be, or cannot be shown to be,
+    before kickoff."""
+    try:
+        kickoff = first_kickoff_utc(warehouse, season, week)
+    except duckdb.Error as error:
+        raise PredictionError(f"could not read the schedule to time the lock: {error}") from error
+    state = lock_state(kickoff, now)
+    if state == "unknown":
+        raise PredictionError(
+            f"{season} week {week} has no usable kickoff time, so a lock cannot be shown to be "
+            "before kickoff. Nothing was locked or published."
+        )
+    if state == "missed":
+        raise PredictionError(
+            f"{season} week {week} was never locked and its first kickoff "
+            f"({kickoff.isoformat()}) has passed or is under 30 minutes away. A forecast made now "
+            "would not be a forecast. Nothing was locked or published; the week will go ungraded "
+            "unless a person decides otherwise."
+        )
+    return state == "lock"
+
+
 def run_predictions(
     settings: Settings,
     storage: Storage,
@@ -192,7 +216,11 @@ def run_predictions(
     season: int | None = None,
     week: int | None = None,
     lock: bool = False,
+    lock_when_due: bool = False,
 ) -> PredictionSummary:
+    """`lock` forces a lock. `lock_when_due` is the unattended form: it locks only inside the window
+    before the week's first kickoff, publishes an existing lock rather than recomputing it, and
+    refuses outright once kickoff is too close or has passed."""
     warehouse = Path(settings.warehouse_path)
     if not warehouse.exists():
         raise PredictionError(f"warehouse not found: {warehouse} (run the dbt build first)")
@@ -220,12 +248,21 @@ def run_predictions(
     if target is None:
         summary.notes.append(f"every week of {season} has been played; nothing left to project")
     else:
-        try:
-            predictions = predict_week(features, season, target)
-        except ValueError as error:
-            raise PredictionError(f"could not project {season} week {target}: {error}") from error
-        if lock:
-            predictions = lock_week(predictions, records)
+        existing = load_locked(records, season, target) if lock_when_due else None
+        if existing is not None:
+            # Already frozen. Publish exactly what was frozen; a fresh projection would differ.
+            predictions = existing
+        else:
+            if lock_when_due:
+                lock = _lock_due(warehouse, season, target, now)
+            try:
+                predictions = predict_week(features, season, target)
+            except ValueError as error:
+                raise PredictionError(
+                    f"could not project {season} week {target}: {error}"
+                ) from error
+            if lock:
+                predictions = lock_week(predictions, records)
         published = _to_published(
             predictions.rows,
             features,

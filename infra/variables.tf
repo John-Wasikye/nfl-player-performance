@@ -3,11 +3,6 @@ variable "region" {
   default = "us-east-1"
 }
 
-variable "profile" {
-  type    = string
-  default = "nfl_player_stats"
-}
-
 variable "bucket_prefix" {
   description = "Globally unique prefix for every bucket. Underscores are illegal in S3 names."
   type        = string
@@ -46,7 +41,7 @@ variable "task_memory" {
 }
 
 variable "image_tag" {
-  description = "ECR tags are immutable, so every pushed image needs a new tag."
+  description = "CI pushes every build as :latest and as its git SHA. The task runs :latest."
   type        = string
-  default     = "v4"
+  default     = "latest"
 }

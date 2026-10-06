@@ -7,6 +7,7 @@ Terraform for the AWS deployment (build-plan step 13). Region us-east-1, CLI pro
 
 ```powershell
 aws sso login --profile nfl_player_stats
+$env:AWS_PROFILE = "nfl_player_stats"   # the code names no profile, so CI can use its own role
 cd infra/bootstrap; terraform init; terraform apply
 cd ..; terraform init; terraform plan; terraform apply
 ```
@@ -15,9 +16,26 @@ Also here: the ECS cluster and task, the daily schedule and alarms (`monitoring.
 distribution in front of the private site bucket (`cloudfront.tf`). Until the custom domain exists (step 19)
 the site is on the distribution's own `*.cloudfront.net` address (`terraform output site_url`).
 
-Deploy the website with `cd web; npm run build; AWS_PROFILE=nfl_player_stats bash scripts/deploy-site.sh`.
-It leaves `data/v1/` alone, because the pipeline owns that prefix. Each new pipeline image needs a new
-`image_tag` (ECR tags are immutable).
+## CI/CD (`github.tf`, `.github/workflows/`)
 
-Not here yet: the GitHub OIDC role (step 18). The $5 budget and billing alarm were made by hand in step 12 and are not
+GitHub Actions reaches AWS through OIDC: no access key exists anywhere. Each run presents a short-lived
+signed token and AWS checks that it names this repository and the expected ref.
+
+- `ci.yml` runs on every push and pull request: lint and tests, the web suite, and `terraform fmt` and
+  `validate`. None of it needs AWS.
+- `plan.yml` runs `terraform plan` on pull requests that touch `infra/`, as the read-only `github-plan`
+  role (cannot change anything, cannot read the data buckets). The plan appears on the run summary.
+- `deploy.yml` runs on merge to `main` as the `github-deploy` role: it pushes the pipeline image (`:latest`
+  and the commit SHA) and uploads the site. That role cannot change infrastructure, touch IAM or billing,
+  read the records, or overwrite `data/v1/`.
+
+Terraform itself is still applied by hand. The only repository secret is `AWS_ACCOUNT_ID`, stored so the
+account number stays out of the public logs; it grants nothing.
+
+`main` is protected: changes arrive by pull request and the `test`, `web` and `infra` checks must pass.
+
+The daily task runs `nfl-pipeline daily` from the `:latest` image. Its schedule, alarms and the
+kickoff guard that refuses a late lock are described in `docs/no-silent-failures.md`.
+
+Not here yet: the custom domain and certificate (step 19). The $5 budget and billing alarm were made by hand in step 12 and are not
 managed here.

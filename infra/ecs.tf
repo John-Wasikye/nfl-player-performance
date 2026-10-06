@@ -53,7 +53,7 @@ resource "aws_ecs_task_definition" "pipeline" {
     name      = "pipeline"
     image     = "${aws_ecr_repository.pipeline.repository_url}:${var.image_tag}"
     essential = true
-    command   = ["run"]
+    command   = ["daily"]
     environment = [
       { name = "STORAGE_BACKEND", value = "s3" },
       { name = "S3_BUCKET", value = aws_s3_bucket.raw.id },
