@@ -12,7 +12,8 @@ Gather:
 
 - **An email address for the root account.** Use a dedicated one, not your everyday inbox - the root
   email is a permanent identity for the account and is painful to change later. A Gmail alias works:
-  `john.wasikye+aws@gmail.com` delivers to your normal inbox but is a distinct address to AWS.
+  `yourname+aws@gmail.com` delivers to your normal inbox but is a distinct address to AWS. Do not
+  publish the address you actually use for the root account.
 - **A payment card.** AWS requires one even when everything you do falls inside the free tier.
 - **A phone number** for identity verification.
 - **An MFA app or passkey** for the root user. An authenticator app on your phone is fine; AWS also
