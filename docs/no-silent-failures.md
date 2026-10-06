@@ -58,6 +58,7 @@ Status is one of: **done** (already true in the code), **step N** (handled in th
 |---|---|---|---|
 | 16 | The browser's fetch of `/data/v1` fails and the page renders empty rather than wrong-looking | Explicit empty, error and loading states exist and are covered by the e2e suite | **done** |
 | 17 | A schema change breaks the contract between `contract.py` and `web/lib/types.ts` | `SCHEMA_VERSION` must be bumped on any contract change; the publish gate validates against the schema | **done** |
+| 18 | **A forecast is locked after kickoff.** `lock_week` writes whatever it is given, so a late scheduled run would stamp a forecast made during the games as written before them, and the Report card's central claim would be false with nothing erroring | `predict/kickoff.py` and `--lock-when-due`: lock only when the week's first kickoff is within 24 hours and more than 30 minutes away; an existing lock is published, never recomputed; an unlocked week past its kickoff, or one whose kickoff cannot be established, exits 1 and writes nothing, which the task-failed rule emails. The kickoff estimate errs early (UTC-4 all year) so doubt can only refuse. 25 tests, and the 5 that assert a refusal were each seen to fail with the guard disabled. Seen working on AWS 2026-10-05: week 4, never locked, was refused | **done 2026-10-05** |
 
 ### How the freshness gate is built
 

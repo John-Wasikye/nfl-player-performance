@@ -6,6 +6,7 @@ nfl-pipeline predict     project the coming week, grade the finished ones, publi
 nfl-pipeline experiment  report where the model missed, or put one candidate through the gate
 nfl-pipeline backtest    score the rankings against what happened the following week
 nfl-pipeline run         ingest, then dbt build (models and tests), then publish
+nfl-pipeline daily       run, then project the coming week and lock it when its window opens
 """
 
 from __future__ import annotations
@@ -81,6 +82,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="write the projections to disk as final. Only do this before the first kickoff of "
         "the week: a locked week cannot be rewritten, which is what makes the Report card honest.",
     )
+    predict.add_argument(
+        "--lock-when-due",
+        action="store_true",
+        help="the unattended form of --lock: lock only if the week's first kickoff is within 24 "
+        "hours and more than 30 minutes away, publish an existing lock instead of recomputing it, "
+        "and refuse (exit 1) if the kickoff has passed with the week unlocked.",
+    )
     experiment = commands.add_parser(
         "experiment",
         help="the weekly learning loop: report where the model missed, or test one candidate",
@@ -104,6 +112,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_ingest_options(
         commands.add_parser("run", help="ingest, build the dbt models and tests, then publish")
+    )
+    add_ingest_options(
+        commands.add_parser(
+            "daily",
+            help="run, then project the coming week and lock it if its kickoff window has opened",
+        )
     )
     return parser
 
@@ -202,6 +216,7 @@ def _run_predict(args: argparse.Namespace, settings: Settings, now: datetime) ->
             season=args.season,
             week=args.week,
             lock=args.lock,
+            lock_when_due=getattr(args, "lock_when_due", False),
         )
     except PredictionError as error:
         print(f"predict failed: {error}", file=sys.stderr)
@@ -313,6 +328,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "backtest":
         return _run_backtest(args, settings, now)
 
+    if args.command == "daily":
+        # Predictions are only made from a warehouse this same run just built and validated: locking
+        # from a stale one would freeze a forecast made from old data.
+        code = _run_pipeline(args, settings, now)
+        if code != 0:
+            print("daily stopped: the run failed, so no projections were made", file=sys.stderr)
+            return code
+        args.season = None
+        args.week = None
+        args.lock = False
+        args.lock_when_due = True
+        return _run_predict(args, settings, now)
+
+    return _run_pipeline(args, settings, now)
+
+
+def _run_pipeline(args: argparse.Namespace, settings: Settings, now: datetime) -> int:
     # "run": each step must succeed before the next one starts, so bad data is never published.
     code = _run_ingest(args, settings, now)
     if code != 0:
