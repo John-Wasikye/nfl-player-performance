@@ -119,8 +119,8 @@ def publish_predictions(
             PredictedPlayer(
                 player_id=row.player_id,
                 name=row.display_name,
-                team=row.team or "",
-                opponent=row.opponent_team or "",
+                team=row.team if isinstance(row.team, str) else "",
+                opponent=row.opponent_team if isinstance(row.opponent_team, str) else "",
                 is_home=bool(row.is_home),
                 position=position,
                 points=round(float(row.points), 2),
