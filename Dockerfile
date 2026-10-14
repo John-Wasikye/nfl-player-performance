@@ -1,12 +1,12 @@
 # Build stage: install the package and its dependencies into an isolated prefix.
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 WORKDIR /build
 COPY pyproject.toml ./
 COPY pipeline ./pipeline
 RUN pip install --no-cache-dir --prefix=/install .
 
 # Runtime stage: only the installed packages and the dbt project, running as a non-root user.
-FROM python:3.12-slim
+FROM python:3.14-slim
 COPY --from=builder /install /usr/local
 # LightGBM needs the OpenMP runtime, which the slim image does not include.
 RUN apt-get update \
