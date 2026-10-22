@@ -4,6 +4,7 @@ import { useJson } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
 import type { AccuracyFile, GradedWeek, LedgerEntry, LedgerFile } from "@/lib/types";
+import { ErrorHistoryChart, errorSeries } from "./charts";
 import { useMeta } from "./MetaContext";
 import { Badge, Card, EmptyState, ErrorState, PageHeader, SectionTitle, Skeleton } from "./ui";
 
@@ -163,9 +164,14 @@ export function ReportCardView() {
                 message="A week is graded once its games have been played."
               />
             ) : (
-              <Card>
-                <WeeklyTable weeks={graded} />
-              </Card>
+              <div className="flex flex-col gap-4">
+                <Card className="p-5">
+                  <ErrorHistoryChart title="Average error by week" series={errorSeries(graded)} />
+                </Card>
+                <Card>
+                  <WeeklyTable weeks={graded} />
+                </Card>
+              </div>
             )}
           </section>
 

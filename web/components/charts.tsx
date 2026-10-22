@@ -2,7 +2,7 @@
 // alternative, so no chart library is needed.
 import { cn } from "@/lib/cn";
 import { formatMetricValue, formatPercent, metricLabel, ordinal } from "@/lib/format";
-import type { BreakdownItem, Component } from "@/lib/types";
+import type { BreakdownItem, Component, GradedWeek } from "@/lib/types";
 
 export interface SeriesPoint {
   week: number;
@@ -132,6 +132,155 @@ export function RankHistoryChart({ series, title }: { series: Series[]; title: s
           </span>
         ))}
         <span className="ml-auto">Higher on the chart is a better rank</span>
+      </div>
+    </figure>
+  );
+}
+
+export interface ValuePoint {
+  week: number;
+  value: number | null;
+}
+
+export interface ValueSeries {
+  id: string;
+  label: string;
+  color: string;
+  dashed?: boolean;
+  points: ValuePoint[];
+}
+
+/** The model against the best baseline of each week (as in the table), plus the frozen control once graded. */
+export function errorSeries(weeks: GradedWeek[]): ValueSeries[] {
+  const series: ValueSeries[] = [
+    {
+      id: "model",
+      label: "Model",
+      color: "var(--accent)",
+      points: weeks.map((w) => ({ week: w.week, value: w.mae })),
+    },
+    {
+      id: "baseline",
+      label: "Best baseline",
+      color: "var(--muted)",
+      dashed: true,
+      points: weeks.map((w) => {
+        const values = Object.values(w.baseline_mae);
+        return { week: w.week, value: values.length ? Math.min(...values) : null };
+      }),
+    },
+  ];
+  if (weeks.some((w) => w.frozen_model_mae !== null)) {
+    series.push({
+      id: "frozen",
+      label: "Frozen control",
+      color: "var(--teal)",
+      points: weeks.map((w) => ({ week: w.week, value: w.frozen_model_mae })),
+    });
+  }
+  return series;
+}
+
+/** An error axis rounded out to whole points. It doesn't start at zero, so small gaps stay visible. */
+export function errorAxis(values: number[]): { min: number; max: number; ticks: number[] } {
+  const min = Math.floor(Math.min(...values));
+  let max = Math.ceil(Math.max(...values));
+  if (max <= min) max = min + 1;
+  const step = max - min <= 2 ? 0.5 : max - min <= 6 ? 1 : 2;
+  const ticks: number[] = [];
+  for (let t = min; t <= max + 1e-9; t += step) ticks.push(Math.round(t * 10) / 10);
+  return { min, max, ticks };
+}
+
+function valueSegments(points: ValuePoint[]) {
+  const out: ValuePoint[][] = [];
+  let current: ValuePoint[] = [];
+  for (const p of points) {
+    if (p.value === null) {
+      if (current.length) out.push(current);
+      current = [];
+    } else current.push(p);
+  }
+  if (current.length) out.push(current);
+  return out;
+}
+
+/** Average error by week, in fantasy points. Lower is better, the opposite of the rank chart. */
+export function ErrorHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
+  const weeks = [...new Set(series.flatMap((s) => s.points.map((p) => p.week)))].sort((a, b) => a - b);
+  const values = series.flatMap((s) => s.points.map((p) => p.value).filter((v): v is number => v !== null));
+  if (weeks.length === 0 || values.length === 0) return null;
+
+  const axis = errorAxis(values);
+  const innerW = W - M.left - M.right;
+  const innerH = H - M.top - M.bottom;
+  const x = (week: number) =>
+    weeks.length === 1 ? M.left + innerW / 2 : M.left + ((week - weeks[0]) / (weeks[weeks.length - 1] - weeks[0])) * innerW;
+  const y = (value: number) => M.top + ((axis.max - value) / (axis.max - axis.min)) * innerH;
+
+  const description = series
+    .map((s) => {
+      const last = [...s.points].reverse().find((p) => p.value !== null);
+      return last ? `${s.label}: ${last.value!.toFixed(2)} points in week ${last.week}` : `${s.label}: not graded`;
+    })
+    .join(". ");
+
+  return (
+    <figure>
+      <figcaption className="sr-only">{title}</figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${description}.`} className="h-auto w-full">
+        {axis.ticks.map((tick) => (
+          <g key={tick}>
+            <line x1={M.left} x2={W - M.right} y1={y(tick)} y2={y(tick)} stroke="var(--line)" strokeWidth="1" />
+            <text x={M.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle" fontSize="11" fill="var(--muted)">
+              {tick.toFixed(1)}
+            </text>
+          </g>
+        ))}
+        {weeks.map((week) => (
+          <text key={week} x={x(week)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
+            {week}
+          </text>
+        ))}
+        <text x={M.left} y={H - 8} textAnchor="end" fontSize="10" fill="var(--muted)" dx="-18">
+          Wk
+        </text>
+        {series.map((s) => (
+          <g key={s.id}>
+            {valueSegments(s.points).map((segment, i) => (
+              <path
+                key={i}
+                data-series={s.id}
+                d={segment.map((p, j) => `${j === 0 ? "M" : "L"}${x(p.week)},${y(p.value as number)}`).join(" ")}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                strokeDasharray={s.dashed ? "6 5" : undefined}
+              />
+            ))}
+            {s.points.map(
+              (p) =>
+                p.value !== null && (
+                  <circle key={p.week} cx={x(p.week)} cy={y(p.value)} r="4" fill="var(--surface)" stroke={s.color} strokeWidth="2.5">
+                    <title>{`${s.label}, week ${p.week}: ${p.value.toFixed(2)} points`}</title>
+                  </circle>
+                ),
+            )}
+          </g>
+        ))}
+      </svg>
+      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted">
+        {series.map((s) => (
+          <span key={s.id} className="inline-flex items-center gap-2">
+            <svg width="24" height="8" aria-hidden="true">
+              <line x1="0" x2="24" y1="4" y2="4" stroke={s.color} strokeWidth="2.5" strokeDasharray={s.dashed ? "5 4" : undefined} />
+            </svg>
+            {s.label}
+          </span>
+        ))}
+        <span className="ml-auto">Lower is better</span>
       </div>
     </figure>
   );
