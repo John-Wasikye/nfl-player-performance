@@ -150,24 +150,30 @@ export interface ValueSeries {
   points: ValuePoint[];
 }
 
-/** The model against the best baseline of each week (as in the table), plus the frozen control once graded. */
-export function errorSeries(weeks: GradedWeek[]): ValueSeries[] {
+/** Margin under 0.15 points counts as too close to call, the same rule the table colours by. */
+export const NOISE_MARGIN = 0.15;
+
+function bestBaselineMae(week: GradedWeek): number | null {
+  const values = Object.values(week.baseline_mae);
+  return values.length ? Math.min(...values) : null;
+}
+
+/**
+ * How far ahead of each week's best baseline (as in the table) the model was, in points, plus the frozen
+ * control once graded. Raw error rises and falls with how hard a week was for everyone; the margin only
+ * moves when the model gets better or worse than the simple averages.
+ */
+export function marginSeries(weeks: GradedWeek[]): ValueSeries[] {
+  const margin = (week: GradedWeek, mae: number | null) => {
+    const baseline = bestBaselineMae(week);
+    return baseline === null || mae === null ? null : baseline - mae;
+  };
   const series: ValueSeries[] = [
     {
       id: "model",
       label: "Model",
       color: "var(--accent)",
-      points: weeks.map((w) => ({ week: w.week, value: w.mae })),
-    },
-    {
-      id: "baseline",
-      label: "Best baseline",
-      color: "var(--muted)",
-      dashed: true,
-      points: weeks.map((w) => {
-        const values = Object.values(w.baseline_mae);
-        return { week: w.week, value: values.length ? Math.min(...values) : null };
-      }),
+      points: weeks.map((w) => ({ week: w.week, value: margin(w, w.mae) })),
     },
   ];
   if (weeks.some((w) => w.frozen_model_mae !== null)) {
@@ -175,21 +181,21 @@ export function errorSeries(weeks: GradedWeek[]): ValueSeries[] {
       id: "frozen",
       label: "Frozen control",
       color: "var(--teal)",
-      points: weeks.map((w) => ({ week: w.week, value: w.frozen_model_mae })),
+      dashed: true,
+      points: weeks.map((w) => ({ week: w.week, value: margin(w, w.frozen_model_mae) })),
     });
   }
   return series;
 }
 
-/** An error axis rounded out to whole points. It doesn't start at zero, so small gaps stay visible. */
-export function errorAxis(values: number[]): { min: number; max: number; ticks: number[] } {
-  const min = Math.floor(Math.min(...values));
-  let max = Math.ceil(Math.max(...values));
-  if (max <= min) max = min + 1;
-  const step = max - min <= 2 ? 0.5 : max - min <= 6 ? 1 : 2;
+/** A margin axis that always includes the baseline (0) and the too-close-to-call line. */
+export function marginAxis(values: number[]): { min: number; max: number; ticks: number[] } {
+  const lo = Math.min(0, ...values);
+  const hi = Math.max(NOISE_MARGIN, ...values);
+  const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2].find((s) => Math.ceil(hi / s) - Math.floor(lo / s) <= 6) ?? 5;
   const ticks: number[] = [];
-  for (let t = min; t <= max + 1e-9; t += step) ticks.push(Math.round(t * 10) / 10);
-  return { min, max, ticks };
+  for (let i = Math.floor(lo / step); i <= Math.ceil(hi / step); i++) ticks.push(Math.round(i * step * 100) / 100);
+  return { min: ticks[0], max: ticks[ticks.length - 1], ticks };
 }
 
 function valueSegments(points: ValuePoint[]) {
@@ -205,13 +211,22 @@ function valueSegments(points: ValuePoint[]) {
   return out;
 }
 
-/** Average error by week, in fantasy points. Lower is better, the opposite of the rank chart. */
-export function ErrorHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
+function describeMargin(value: number): string {
+  if (Math.abs(value) < 0.005) return "level with the best baseline";
+  return `${Math.abs(value).toFixed(2)} points ${value > 0 ? "ahead of" : "behind"} the best baseline`;
+}
+
+function signed(value: number): string {
+  return value === 0 ? "0" : `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}`;
+}
+
+/** Margin over the best baseline by week. Higher is better, and above the shaded band is a real lead. */
+export function MarginHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
   const weeks = [...new Set(series.flatMap((s) => s.points.map((p) => p.week)))].sort((a, b) => a - b);
   const values = series.flatMap((s) => s.points.map((p) => p.value).filter((v): v is number => v !== null));
   if (weeks.length === 0 || values.length === 0) return null;
 
-  const axis = errorAxis(values);
+  const axis = marginAxis(values);
   const innerW = W - M.left - M.right;
   const innerH = H - M.top - M.bottom;
   const x = (week: number) =>
@@ -221,7 +236,7 @@ export function ErrorHistoryChart({ series, title }: { series: ValueSeries[]; ti
   const description = series
     .map((s) => {
       const last = [...s.points].reverse().find((p) => p.value !== null);
-      return last ? `${s.label}: ${last.value!.toFixed(2)} points in week ${last.week}` : `${s.label}: not graded`;
+      return last ? `${s.label}: ${describeMargin(last.value!)} in week ${last.week}` : `${s.label}: not graded`;
     })
     .join(". ");
 
@@ -229,14 +244,28 @@ export function ErrorHistoryChart({ series, title }: { series: ValueSeries[]; ti
     <figure>
       <figcaption className="sr-only">{title}</figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${description}.`} className="h-auto w-full">
+        <rect x={M.left} width={innerW} y={y(NOISE_MARGIN)} height={y(0) - y(NOISE_MARGIN)} fill="var(--surface-2)" />
+        <text x={W - M.right - 6} y={y(NOISE_MARGIN) + 14} textAnchor="end" fontSize="11" fill="var(--muted)">
+          Too close to call
+        </text>
         {axis.ticks.map((tick) => (
           <g key={tick}>
-            <line x1={M.left} x2={W - M.right} y1={y(tick)} y2={y(tick)} stroke="var(--line)" strokeWidth="1" />
+            <line
+              x1={M.left}
+              x2={W - M.right}
+              y1={y(tick)}
+              y2={y(tick)}
+              stroke={tick === 0 ? "var(--muted)" : "var(--line)"}
+              strokeWidth="1"
+            />
             <text x={M.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle" fontSize="11" fill="var(--muted)">
-              {tick.toFixed(1)}
+              {signed(tick)}
             </text>
           </g>
         ))}
+        <text x={W - M.right - 6} y={y(0) - 6} textAnchor="end" fontSize="11" fill="var(--muted)">
+          Baseline
+        </text>
         {weeks.map((week) => (
           <text key={week} x={x(week)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
             {week}
@@ -264,7 +293,7 @@ export function ErrorHistoryChart({ series, title }: { series: ValueSeries[]; ti
               (p) =>
                 p.value !== null && (
                   <circle key={p.week} cx={x(p.week)} cy={y(p.value)} r="4" fill="var(--surface)" stroke={s.color} strokeWidth="2.5">
-                    <title>{`${s.label}, week ${p.week}: ${p.value.toFixed(2)} points`}</title>
+                    <title>{`${s.label}, week ${p.week}: ${describeMargin(p.value)}`}</title>
                   </circle>
                 ),
             )}
@@ -280,7 +309,7 @@ export function ErrorHistoryChart({ series, title }: { series: ValueSeries[]; ti
             {s.label}
           </span>
         ))}
-        <span className="ml-auto">Lower is better</span>
+        <span className="ml-auto">Higher is better</span>
       </div>
     </figure>
   );
