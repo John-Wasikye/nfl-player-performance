@@ -4,7 +4,7 @@ import { useJson } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
 import type { AccuracyFile, GradedWeek, LedgerEntry, LedgerFile } from "@/lib/types";
-import { MarginHistoryChart, marginSeries } from "./charts";
+import { AccuracyHistoryChart, withinSeries } from "./charts";
 import { useMeta } from "./MetaContext";
 import { Badge, Card, EmptyState, ErrorState, PageHeader, SectionTitle, Skeleton } from "./ui";
 
@@ -41,13 +41,15 @@ function WeeklyTable({ weeks }: { weeks: GradedWeek[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <caption className="sr-only">
-          Accuracy by week: mean absolute error against the best simple baseline, with the number of
-          player-games each figure is based on.
+          Accuracy by week: the share of projections within 5 points of the real score, and mean
+          absolute error against the best simple baseline, with the number of player-games each
+          figure is based on.
         </caption>
         <thead>
           <tr className="border-b border-line text-left text-xs text-muted">
             <th scope="col" className="px-4 py-2 font-medium">Week</th>
             <th scope="col" className="px-4 py-2 font-medium">Players</th>
+            <th scope="col" className="px-4 py-2 text-right font-medium">Within 5 pts</th>
             <th scope="col" className="px-4 py-2 text-right font-medium">Avg error</th>
             <th scope="col" className="px-4 py-2 text-right font-medium">Best baseline</th>
             <th scope="col" className="px-4 py-2 text-right font-medium">Margin</th>
@@ -61,6 +63,9 @@ function WeeklyTable({ weeks }: { weeks: GradedWeek[] }) {
               <tr key={week.week} className="border-b border-line last:border-b-0">
                 <th scope="row" className="px-4 py-2 text-left font-medium">{week.week}</th>
                 <td className="px-4 py-2 text-muted tnum">{week.player_games.toLocaleString()}</td>
+                <td className="px-4 py-2 text-right tnum">
+                  {week.within_5_points === undefined ? "—" : formatPercent(week.within_5_points)}
+                </td>
                 <td className="px-4 py-2 text-right tnum">{week.mae.toFixed(2)}</td>
                 <td className="px-4 py-2 text-right text-muted tnum">
                   {baseline ? baseline.mae.toFixed(2) : "—"}
@@ -156,7 +161,7 @@ export function ReportCardView() {
           <section>
             <SectionTitle
               title="Week by week"
-              description="Average error depends on how many and which players are included, so each week shows its player count."
+              description="How many projections landed within 5 points of the real score, week by week. Accuracy depends on which players are included, so each week also shows its player count."
             />
             {graded.length === 0 ? (
               <EmptyState
@@ -166,7 +171,7 @@ export function ReportCardView() {
             ) : (
               <div className="flex flex-col gap-4">
                 <Card className="p-5">
-                  <MarginHistoryChart title="Margin over the best baseline, by week" series={marginSeries(graded)} />
+                  <AccuracyHistoryChart title="Projections within 5 points, by week" series={withinSeries(graded)} />
                 </Card>
                 <Card>
                   <WeeklyTable weeks={graded} />
@@ -197,6 +202,12 @@ export function ReportCardView() {
             <SectionTitle title="How to read this" />
             <Card className="p-5">
               <dl className="flex flex-col gap-4 text-sm">
+                <div>
+                  <dt className="font-medium">Within 5 points</dt>
+                  <dd className="text-muted">
+                    The share of projections that landed within 5 fantasy points of the real score, either side. A projection of 18 counts if he scored anywhere from 13 to 23. The dashed line is the same measure for the best simple average, such as a player&apos;s last five games, so you can see whether the model is doing better than a plain guess.
+                  </dd>
+                </div>
                 <div>
                   <dt className="font-medium">Average error</dt>
                   <dd className="text-muted">

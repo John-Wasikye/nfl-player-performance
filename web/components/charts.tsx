@@ -1,5 +1,6 @@
 // Hand-drawn SVG charts. They are small, scale to any width, follow the theme, and have a text
 // alternative, so no chart library is needed.
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatMetricValue, formatPercent, metricLabel, ordinal } from "@/lib/format";
 import type { BreakdownItem, Component, GradedWeek } from "@/lib/types";
@@ -150,53 +151,37 @@ export interface ValueSeries {
   points: ValuePoint[];
 }
 
-/** Margin under 0.15 points counts as too close to call, the same rule the table colours by. */
-export const NOISE_MARGIN = 0.15;
-
-function bestBaselineMae(week: GradedWeek): number | null {
-  const values = Object.values(week.baseline_mae);
-  return values.length ? Math.min(...values) : null;
-}
-
 /**
- * How far ahead of each week's best baseline (as in the table) the model was, in points, plus the frozen
- * control once graded. Raw error rises and falls with how hard a week was for everyone; the margin only
- * moves when the model gets better or worse than the simple averages.
+ * Share of projections within 5 points of the real score each week, for the model and for the best
+ * simple average on the same players. A week graded before the figure existed is left as a gap.
  */
-export function marginSeries(weeks: GradedWeek[]): ValueSeries[] {
-  const margin = (week: GradedWeek, mae: number | null) => {
-    const baseline = bestBaselineMae(week);
-    return baseline === null || mae === null ? null : baseline - mae;
-  };
-  const series: ValueSeries[] = [
+export function withinSeries(weeks: GradedWeek[]): ValueSeries[] {
+  return [
     {
       id: "model",
       label: "Model",
       color: "var(--accent)",
-      points: weeks.map((w) => ({ week: w.week, value: margin(w, w.mae) })),
+      points: weeks.map((w) => ({ week: w.week, value: w.within_5_points ?? null })),
+    },
+    {
+      id: "baseline",
+      label: "Best simple average",
+      color: "var(--muted)",
+      dashed: true,
+      points: weeks.map((w) => {
+        const values = Object.values(w.baseline_within_5_points ?? {});
+        return { week: w.week, value: values.length ? Math.max(...values) : null };
+      }),
     },
   ];
-  if (weeks.some((w) => w.frozen_model_mae !== null)) {
-    series.push({
-      id: "frozen",
-      label: "Frozen control",
-      color: "var(--teal)",
-      dashed: true,
-      points: weeks.map((w) => ({ week: w.week, value: margin(w, w.frozen_model_mae) })),
-    });
-  }
-  return series;
 }
 
-/** A margin axis that always includes the baseline (0) and the too-close-to-call line. */
-export function marginAxis(values: number[]): { min: number; max: number; ticks: number[] } {
-  const lo = Math.min(0, ...values);
-  const hi = Math.max(NOISE_MARGIN, ...values);
-  const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2].find((s) => Math.ceil(hi / s) - Math.floor(lo / s) <= 6) ?? 5;
-  const ticks: number[] = [];
-  for (let i = Math.floor(lo / step); i <= Math.ceil(hi / step); i++) ticks.push(Math.round(i * step * 100) / 100);
-  return { min: ticks[0], max: ticks[ticks.length - 1], ticks };
-}
+const PERCENT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+// Drawn at its on-screen width rather than scaled, so the axis labels stay readable on a phone.
+const AW = 640;
+const MIN_AW = 280;
+const AH = 270;
+const AM = { top: 16, right: 20, bottom: 46, left: 64 };
 
 function valueSegments(points: ValuePoint[]) {
   const out: ValuePoint[][] = [];
@@ -211,68 +196,69 @@ function valueSegments(points: ValuePoint[]) {
   return out;
 }
 
-function describeMargin(value: number): string {
-  if (Math.abs(value) < 0.005) return "level with the best baseline";
-  return `${Math.abs(value).toFixed(2)} points ${value > 0 ? "ahead of" : "behind"} the best baseline`;
-}
+/** Projections within 5 points by week, on a fixed 0% to 100% scale. Higher is better. */
+export function AccuracyHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const [width, setWidth] = useState(AW);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) =>
+      setWidth(Math.max(MIN_AW, Math.round(entry.contentRect.width))),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
-function signed(value: number): string {
-  return value === 0 ? "0" : `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}`;
-}
-
-/** Margin over the best baseline by week. Higher is better, and above the shaded band is a real lead. */
-export function MarginHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
   const weeks = [...new Set(series.flatMap((s) => s.points.map((p) => p.week)))].sort((a, b) => a - b);
-  const values = series.flatMap((s) => s.points.map((p) => p.value).filter((v): v is number => v !== null));
-  if (weeks.length === 0 || values.length === 0) return null;
+  const hasValue = series.some((s) => s.points.some((p) => p.value !== null));
+  if (weeks.length === 0 || !hasValue) return null;
 
-  const axis = marginAxis(values);
-  const innerW = W - M.left - M.right;
-  const innerH = H - M.top - M.bottom;
+  const innerW = width - AM.left - AM.right;
+  const innerH = AH - AM.top - AM.bottom;
   const x = (week: number) =>
-    weeks.length === 1 ? M.left + innerW / 2 : M.left + ((week - weeks[0]) / (weeks[weeks.length - 1] - weeks[0])) * innerW;
-  const y = (value: number) => M.top + ((axis.max - value) / (axis.max - axis.min)) * innerH;
+    weeks.length === 1 ? AM.left + innerW / 2 : AM.left + ((week - weeks[0]) / (weeks[weeks.length - 1] - weeks[0])) * innerW;
+  const y = (share: number) => AM.top + (1 - share) * innerH;
+  // On a narrow screen a full season of week numbers would overlap, so label every other one.
+  const labelEvery = Math.max(1, Math.ceil(24 / (innerW / Math.max(1, weeks.length - 1))));
+  const last = weeks.length - 1;
+  const labelled = weeks.filter((_, i) => i === last || (i % labelEvery === 0 && last - i >= labelEvery));
 
   const description = series
     .map((s) => {
       const last = [...s.points].reverse().find((p) => p.value !== null);
-      return last ? `${s.label}: ${describeMargin(last.value!)} in week ${last.week}` : `${s.label}: not graded`;
+      return last ? `${s.label}: ${formatPercent(last.value!)} within 5 points in week ${last.week}` : `${s.label}: not graded`;
     })
     .join(". ");
 
   return (
-    <figure>
+    <figure ref={ref}>
       <figcaption className="sr-only">{title}</figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${description}.`} className="h-auto w-full">
-        <rect x={M.left} width={innerW} y={y(NOISE_MARGIN)} height={y(0) - y(NOISE_MARGIN)} fill="var(--surface-2)" />
-        <text x={W - M.right - 6} y={y(NOISE_MARGIN) + 14} textAnchor="end" fontSize="11" fill="var(--muted)">
-          Too close to call
-        </text>
-        {axis.ticks.map((tick) => (
+      <svg viewBox={`0 0 ${width} ${AH}`} role="img" aria-label={`${title}. ${description}.`} className="h-auto w-full">
+        {PERCENT_TICKS.map((tick) => (
           <g key={tick}>
-            <line
-              x1={M.left}
-              x2={W - M.right}
-              y1={y(tick)}
-              y2={y(tick)}
-              stroke={tick === 0 ? "var(--muted)" : "var(--line)"}
-              strokeWidth="1"
-            />
-            <text x={M.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle" fontSize="11" fill="var(--muted)">
-              {signed(tick)}
+            <line x1={AM.left} x2={width - AM.right} y1={y(tick)} y2={y(tick)} stroke="var(--line)" strokeWidth="1" />
+            <text x={AM.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle" fontSize="12" fill="var(--muted)">
+              {formatPercent(tick)}
             </text>
           </g>
         ))}
-        <text x={W - M.right - 6} y={y(0) - 6} textAnchor="end" fontSize="11" fill="var(--muted)">
-          Baseline
-        </text>
-        {weeks.map((week) => (
-          <text key={week} x={x(week)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
+        {labelled.map((week) => (
+          <text key={week} x={x(week)} y={AM.top + innerH + 18} textAnchor="middle" fontSize="12" fill="var(--muted)">
             {week}
           </text>
         ))}
-        <text x={M.left} y={H - 8} textAnchor="end" fontSize="10" fill="var(--muted)" dx="-18">
-          Wk
+        <text x={AM.left + innerW / 2} y={AH - 6} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--fg)">
+          Week
+        </text>
+        <text
+          transform={`translate(14 ${AM.top + innerH / 2}) rotate(-90)`}
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="600"
+          fill="var(--fg)"
+        >
+          Projections within 5 points
         </text>
         {series.map((s) => (
           <g key={s.id}>
@@ -293,7 +279,7 @@ export function MarginHistoryChart({ series, title }: { series: ValueSeries[]; t
               (p) =>
                 p.value !== null && (
                   <circle key={p.week} cx={x(p.week)} cy={y(p.value)} r="4" fill="var(--surface)" stroke={s.color} strokeWidth="2.5">
-                    <title>{`${s.label}, week ${p.week}: ${describeMargin(p.value)}`}</title>
+                    <title>{`${s.label}, week ${p.week}: ${formatPercent(p.value)} within 5 points`}</title>
                   </circle>
                 ),
             )}

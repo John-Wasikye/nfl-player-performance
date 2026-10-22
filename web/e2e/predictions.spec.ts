@@ -94,6 +94,18 @@ test.describe("Report card", () => {
     await expect(week3).toContainText("-0.14");
   });
 
+  test("charts how many projections landed within 5 points, week by week", async ({ page }) => {
+    await page.goto("/report-card/");
+
+    const chart = page.getByRole("img", { name: /Projections within 5 points, by week/ });
+    await expect(chart).toBeVisible();
+    // Week 3 of the fixture is the losing week: 52% against 54% for the best simple average.
+    await expect(chart).toHaveAccessibleName(
+      /Model: 52% within 5 points in week 3\. Best simple average: 54% within 5 points in week 3/,
+    );
+    await expect(page.getByRole("row").filter({ hasText: "5.58" })).toContainText("52%");
+  });
+
   test("publishes the experiments that failed, not only the ones that worked", async ({ page }) => {
     await page.goto("/report-card/");
 

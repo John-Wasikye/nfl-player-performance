@@ -15,6 +15,7 @@ def week(
     coverage: float = 0.80,
     frozen: float | None = None,
     players: int = 200,
+    within: float = 0.55,
 ) -> GradedWeek:
     return GradedWeek(
         season=2025,
@@ -25,6 +26,8 @@ def week(
         interval_coverage=coverage,
         baseline_mae={"recent_average": baseline, "season_average": baseline + 0.2},
         frozen_model_mae=frozen,
+        within_5_points=within,
+        baseline_within_5_points={"recent_average": within - 0.02, "season_average": within - 0.04},
     )
 
 
@@ -34,6 +37,15 @@ def test_a_busy_week_counts_for_more_than_a_quiet_one():
 
     assert pooled.player_games == 500
     assert pooled.mae == pytest.approx(4.4)
+
+
+def test_the_share_within_five_points_is_pooled_by_player_games_too():
+    pooled = combine(
+        [week(1, mae=4.0, players=400, within=0.60), week(2, mae=6.0, players=100, within=0.40)]
+    )
+
+    assert pooled.within_5_points == pytest.approx(0.56)
+    assert pooled.baseline_within_5_points["recent_average"] == pytest.approx(0.54)
 
 
 def test_it_says_plainly_when_the_model_is_losing_to_a_simple_average():

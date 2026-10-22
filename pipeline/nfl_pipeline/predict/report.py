@@ -53,6 +53,11 @@ def combine(weeks: list[GradedWeek]) -> GradedWeek | None:
             name: pooled([w.baseline_mae.get(name, np.nan) for w in weeks]) for name in names
         },
         frozen_model_mae=pooled(frozen) if all(f is not None for f in frozen) else None,
+        within_5_points=pooled([w.within_5_points for w in weeks]),
+        baseline_within_5_points={
+            name: pooled([w.baseline_within_5_points.get(name, np.nan) for w in weeks])
+            for name in sorted({name for w in weeks for name in w.baseline_within_5_points})
+        },
     )
 
 
