@@ -26,6 +26,7 @@ def week(
         interval_coverage=coverage,
         baseline_mae={"recent_average": baseline, "season_average": baseline + 0.2},
         frozen_model_mae=frozen,
+        frozen_within_5_points=None if frozen is None else within - 0.01,
         within_5_points=within,
         baseline_within_5_points={"recent_average": within - 0.02, "season_average": within - 0.04},
     )
@@ -130,3 +131,41 @@ def test_the_published_file_carries_the_weeks_in_order():
 
     assert [w.week for w in accuracy.weeks] == [1, 2, 3]
     assert accuracy.season_to_date.player_games == 600
+
+
+def test_weeks_from_before_the_control_existed_do_not_block_the_comparison():
+    """The frozen model started at week 8, so weeks 5 to 7 will never have a control line."""
+    weeks = [week(n, mae=5.20) for n in range(1, 4)]
+    weeks += [week(n, mae=5.20, frozen=5.50) for n in range(4, 8)]
+
+    text = verdict(weeks, combine(weeks))
+
+    assert "beating a model frozen before the season by 0.30" in text
+
+
+def test_only_weeks_with_a_control_are_compared_with_it():
+    """A bad week with no control must not drag the comparison either way."""
+    weeks = [week(n, mae=7.00) for n in range(1, 4)]
+    weeks += [week(n, mae=5.20, frozen=5.21) for n in range(4, 8)]
+
+    text = verdict(weeks, combine(weeks))
+
+    assert "level with a model frozen before the season" in text
+
+
+def test_too_few_weeks_counts_only_the_weeks_with_a_control():
+    weeks = [week(n, mae=5.20) for n in range(1, 6)]
+    weeks += [week(n, mae=5.20, frozen=5.90) for n in range(6, 8)]
+
+    text = verdict(weeks, combine(weeks))
+
+    assert "2 weeks is too few" in text
+
+
+def test_the_control_is_pooled_too_once_every_week_has_one():
+    pooled = combine(
+        [week(1, mae=5.0, frozen=5.4, within=0.6), week(2, mae=5.0, frozen=5.2, within=0.5)]
+    )
+
+    assert pooled.frozen_model_mae == pytest.approx(5.3)
+    assert pooled.frozen_within_5_points == pytest.approx(0.54)
