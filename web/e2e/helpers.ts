@@ -16,3 +16,23 @@ export async function openSearchWithSlash(page: Page) {
   }).toPass({ timeout: 15_000 });
   return dialog;
 }
+
+/**
+ * Wait for the page's fade-in to finish before measuring anything visual.
+ *
+ * Page content rises in over 0.35 s (the `rise` animation in globals.css). A contrast check that runs
+ * mid-fade sees half-transparent text and reports it: frozen at 60 ms the player page showed 55
+ * colour-contrast failures, and none once the fade had ended. That made the accessibility suite flaky
+ * on slow CI runners. Endless animations, like the loading shimmer, are left out or this would never
+ * resolve.
+ */
+export async function waitForFadeIn(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+}
