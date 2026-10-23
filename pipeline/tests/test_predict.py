@@ -535,6 +535,30 @@ def test_grading_scores_the_locked_numbers_against_what_happened(weekly):
     assert set(graded.baseline_mae) == {"recent_average", "season_average", "last_ten"}
 
 
+def test_grading_counts_how_many_projections_landed_within_five_points(weekly):
+    """The headline accuracy figure: a projection is close enough if it was within 5 points."""
+    from nfl_pipeline.predict.weekly import grade_week, lock_week
+
+    predictions, _, root = weekly
+    locked = lock_week(predictions, root)
+    played = walkable_frame()
+    # Exactly 5 away counts as within; 5.5 away does not.
+    offsets = [0.0, 5.0, -5.0, 5.5]
+    week18 = (played.season == 2024) & (played.week == 18)
+    played.loc[week18, "actual_ppr"] = np.nan
+    for i, (player, points) in enumerate(
+        zip(locked.rows.player_id, locked.rows.points, strict=True)
+    ):
+        played.loc[week18 & (played.player_id == player), "actual_ppr"] = points + offsets[i % 4]
+    expected = np.mean([abs(offsets[i % 4]) <= 5 for i in range(len(locked.rows))])
+
+    graded = grade_week(locked, played)
+
+    assert graded.within_5_points == pytest.approx(expected, abs=1e-4)
+    assert set(graded.baseline_within_5_points) == {"recent_average", "season_average", "last_ten"}
+    assert all(0 <= share <= 1 for share in graded.baseline_within_5_points.values())
+
+
 def test_a_player_who_never_took_the_field_is_not_graded_as_a_miss(weekly):
     """Missing a game is the availability model's business, not the points model's."""
     from nfl_pipeline.predict.weekly import grade_week, lock_week

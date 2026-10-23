@@ -73,7 +73,7 @@ cpSync(join(source, "ledger.json"), join(target, "ledger.json"));
 
 // Written by hand because no week has been graded yet and the real file is empty. The numbers are
 // made up, to cover the states the Report card has to show, including a losing week.
-const gradedWeek = (week, mae, baseline, coverage, frozen, players) => ({
+const gradedWeek = (week, mae, baseline, coverage, frozen, players, within, baselineWithin) => ({
   season: meta.season,
   week,
   player_games: players,
@@ -82,14 +82,20 @@ const gradedWeek = (week, mae, baseline, coverage, frozen, players) => ({
   interval_coverage: coverage,
   baseline_mae: { recent_average: baseline, season_average: baseline + 0.2, last_ten: baseline + 0.1 },
   frozen_model_mae: frozen,
+  within_5_points: within,
+  baseline_within_5_points: {
+    recent_average: baselineWithin,
+    season_average: Number((baselineWithin - 0.03).toFixed(4)),
+    last_ten: Number((baselineWithin - 0.01).toFixed(4)),
+  },
 });
 const weeks = [
   // Comfortably ahead.
-  gradedWeek(1, 5.12, 5.41, 0.801, 5.33, 331),
+  gradedWeek(1, 5.12, 5.41, 0.801, 5.33, 331, 0.58, 0.55),
   // Ahead by less than 0.15, which must not render as a win.
-  gradedWeek(2, 5.33, 5.4, 0.792, 5.36, 338),
+  gradedWeek(2, 5.33, 5.4, 0.792, 5.36, 338, 0.56, 0.55),
   // Behind the baseline.
-  gradedWeek(3, 5.58, 5.44, 0.774, 5.41, 344),
+  gradedWeek(3, 5.58, 5.44, 0.774, 5.41, 344, 0.52, 0.54),
 ];
 const pooled = (pick) =>
   Number(
@@ -116,6 +122,12 @@ write(join(target, "accuracy", `${meta.season}.json`), {
       last_ten: pooled((w) => w.baseline_mae.last_ten),
     },
     frozen_model_mae: pooled((w) => w.frozen_model_mae),
+    within_5_points: pooled((w) => w.within_5_points),
+    baseline_within_5_points: {
+      recent_average: pooled((w) => w.baseline_within_5_points.recent_average),
+      season_average: pooled((w) => w.baseline_within_5_points.season_average),
+      last_ten: pooled((w) => w.baseline_within_5_points.last_ten),
+    },
   },
   verdict:
     "Across 3 graded weeks and 1,013 player-games, projections were off by 5.34 fantasy points on " +

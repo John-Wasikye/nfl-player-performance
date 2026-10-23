@@ -46,6 +46,9 @@ LOCKED_COLUMNS = [
 
 MIN_HISTORY_ROWS = 2000
 
+# A projection this close to the real score counts as a hit on the Report card's headline chart.
+CLOSE_ENOUGH_POINTS = 5.0
+
 
 @dataclass
 class WeeklyPredictions:
@@ -240,4 +243,14 @@ def grade_week(
             for name, values in baselines.items()
         },
         frozen_model_mae=frozen_mae,
+        within_5_points=_share_within(graded.actual_ppr, graded.points),
+        baseline_within_5_points={
+            name: _share_within(graded.actual_ppr, values) for name, values in baselines.items()
+        },
     )
+
+
+def _share_within(actual: pd.Series, projected) -> float:
+    """Share of projections within CLOSE_ENOUGH_POINTS of what happened, inclusive."""
+    miss = np.abs(actual.to_numpy() - np.asarray(projected, dtype=float))
+    return round(float(np.mean(miss <= CLOSE_ENOUGH_POINTS + 1e-9)), 4)

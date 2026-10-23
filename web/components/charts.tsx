@@ -1,8 +1,9 @@
 // Hand-drawn SVG charts. They are small, scale to any width, follow the theme, and have a text
 // alternative, so no chart library is needed.
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatMetricValue, formatPercent, metricLabel, ordinal } from "@/lib/format";
-import type { BreakdownItem, Component } from "@/lib/types";
+import type { BreakdownItem, Component, GradedWeek } from "@/lib/types";
 
 export interface SeriesPoint {
   week: number;
@@ -132,6 +133,169 @@ export function RankHistoryChart({ series, title }: { series: Series[]; title: s
           </span>
         ))}
         <span className="ml-auto">Higher on the chart is a better rank</span>
+      </div>
+    </figure>
+  );
+}
+
+export interface ValuePoint {
+  week: number;
+  value: number | null;
+}
+
+export interface ValueSeries {
+  id: string;
+  label: string;
+  color: string;
+  dashed?: boolean;
+  points: ValuePoint[];
+}
+
+/**
+ * Share of projections within 5 points of the real score each week, for the model and for the best
+ * simple average on the same players. A week graded before the figure existed is left as a gap.
+ */
+export function withinSeries(weeks: GradedWeek[]): ValueSeries[] {
+  return [
+    {
+      id: "model",
+      label: "Model",
+      color: "var(--accent)",
+      points: weeks.map((w) => ({ week: w.week, value: w.within_5_points ?? null })),
+    },
+    {
+      id: "baseline",
+      label: "Best simple average",
+      color: "var(--muted)",
+      dashed: true,
+      points: weeks.map((w) => {
+        const values = Object.values(w.baseline_within_5_points ?? {});
+        return { week: w.week, value: values.length ? Math.max(...values) : null };
+      }),
+    },
+  ];
+}
+
+const PERCENT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+// Drawn at its on-screen width rather than scaled, so the axis labels stay readable on a phone.
+const AW = 640;
+const MIN_AW = 280;
+const AH = 270;
+const AM = { top: 16, right: 20, bottom: 46, left: 64 };
+
+function valueSegments(points: ValuePoint[]) {
+  const out: ValuePoint[][] = [];
+  let current: ValuePoint[] = [];
+  for (const p of points) {
+    if (p.value === null) {
+      if (current.length) out.push(current);
+      current = [];
+    } else current.push(p);
+  }
+  if (current.length) out.push(current);
+  return out;
+}
+
+/** Projections within 5 points by week, on a fixed 0% to 100% scale. Higher is better. */
+export function AccuracyHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const [width, setWidth] = useState(AW);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) =>
+      setWidth(Math.max(MIN_AW, Math.round(entry.contentRect.width))),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const weeks = [...new Set(series.flatMap((s) => s.points.map((p) => p.week)))].sort((a, b) => a - b);
+  const hasValue = series.some((s) => s.points.some((p) => p.value !== null));
+  if (weeks.length === 0 || !hasValue) return null;
+
+  const innerW = width - AM.left - AM.right;
+  const innerH = AH - AM.top - AM.bottom;
+  const x = (week: number) =>
+    weeks.length === 1 ? AM.left + innerW / 2 : AM.left + ((week - weeks[0]) / (weeks[weeks.length - 1] - weeks[0])) * innerW;
+  const y = (share: number) => AM.top + (1 - share) * innerH;
+  // On a narrow screen a full season of week numbers would overlap, so label every other one.
+  const labelEvery = Math.max(1, Math.ceil(24 / (innerW / Math.max(1, weeks.length - 1))));
+  const last = weeks.length - 1;
+  const labelled = weeks.filter((_, i) => i === last || (i % labelEvery === 0 && last - i >= labelEvery));
+
+  const description = series
+    .map((s) => {
+      const last = [...s.points].reverse().find((p) => p.value !== null);
+      return last ? `${s.label}: ${formatPercent(last.value!)} within 5 points in week ${last.week}` : `${s.label}: not graded`;
+    })
+    .join(". ");
+
+  return (
+    <figure ref={ref}>
+      <figcaption className="sr-only">{title}</figcaption>
+      <svg viewBox={`0 0 ${width} ${AH}`} role="img" aria-label={`${title}. ${description}.`} className="h-auto w-full">
+        {PERCENT_TICKS.map((tick) => (
+          <g key={tick}>
+            <line x1={AM.left} x2={width - AM.right} y1={y(tick)} y2={y(tick)} stroke="var(--line)" strokeWidth="1" />
+            <text x={AM.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle" fontSize="12" fill="var(--muted)">
+              {formatPercent(tick)}
+            </text>
+          </g>
+        ))}
+        {labelled.map((week) => (
+          <text key={week} x={x(week)} y={AM.top + innerH + 18} textAnchor="middle" fontSize="12" fill="var(--muted)">
+            {week}
+          </text>
+        ))}
+        <text x={AM.left + innerW / 2} y={AH - 6} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--fg)">
+          Week
+        </text>
+        <text
+          transform={`translate(14 ${AM.top + innerH / 2}) rotate(-90)`}
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="600"
+          fill="var(--fg)"
+        >
+          Projections within 5 points
+        </text>
+        {series.map((s) => (
+          <g key={s.id}>
+            {valueSegments(s.points).map((segment, i) => (
+              <path
+                key={i}
+                data-series={s.id}
+                d={segment.map((p, j) => `${j === 0 ? "M" : "L"}${x(p.week)},${y(p.value as number)}`).join(" ")}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                strokeDasharray={s.dashed ? "6 5" : undefined}
+              />
+            ))}
+            {s.points.map(
+              (p) =>
+                p.value !== null && (
+                  <circle key={p.week} cx={x(p.week)} cy={y(p.value)} r="4" fill="var(--surface)" stroke={s.color} strokeWidth="2.5">
+                    <title>{`${s.label}, week ${p.week}: ${formatPercent(p.value)} within 5 points`}</title>
+                  </circle>
+                ),
+            )}
+          </g>
+        ))}
+      </svg>
+      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted">
+        {series.map((s) => (
+          <span key={s.id} className="inline-flex items-center gap-2">
+            <svg width="24" height="8" aria-hidden="true">
+              <line x1="0" x2="24" y1="4" y2="4" stroke={s.color} strokeWidth="2.5" strokeDasharray={s.dashed ? "5 4" : undefined} />
+            </svg>
+            {s.label}
+          </span>
+        ))}
+        <span className="ml-auto">Higher is better</span>
       </div>
     </figure>
   );
