@@ -148,6 +148,10 @@ def lock_key(season: int, week: int) -> str:
     return f"{season}/week_{week:02d}.json"
 
 
+def frozen_key(season: int, week: int) -> str:
+    return f"{season}/frozen/week_{week:02d}.json"
+
+
 def lock_week(predictions: WeeklyPredictions, records: Storage) -> WeeklyPredictions:
     """Write the week's projections once, before kickoff, and never again.
 
@@ -155,7 +159,18 @@ def lock_week(predictions: WeeklyPredictions, records: Storage) -> WeeklyPredict
     different numbers raises, because that is either a bug or the report card being rewritten after
     the fact, and both need a human.
     """
-    key = lock_key(predictions.season, predictions.week)
+    return _lock_once(predictions, records, lock_key(predictions.season, predictions.week))
+
+
+def lock_frozen(frozen: WeeklyPredictions, records: Storage) -> WeeklyPredictions:
+    """Write the frozen model's projections for a week, under the same write-once rule as the lock.
+
+    They go in their own file beside the week's lock, so the lock file's format never changes.
+    """
+    return _lock_once(frozen, records, frozen_key(frozen.season, frozen.week))
+
+
+def _lock_once(predictions: WeeklyPredictions, records: Storage, key: str) -> WeeklyPredictions:
     locked = WeeklyPredictions(
         season=predictions.season,
         week=predictions.week,
@@ -166,17 +181,15 @@ def lock_week(predictions: WeeklyPredictions, records: Storage) -> WeeklyPredict
     )
     payload = json.dumps(locked.to_json(), indent=2).encode("utf-8")
     if records.put_bytes_if_absent(key, payload):
-        logger.info(
-            "locked %d projections for %s week %s", len(locked.rows), locked.season, locked.week
-        )
+        logger.info("locked %d projections in %s", len(locked.rows), key)
         return locked
 
     # The key was already taken, either by an earlier run or by one that finished a moment ago.
-    existing = load_locked(records, predictions.season, predictions.week)
+    existing = _load(records, key)
     if existing is None:
         raise RuntimeError(f"{key} was reported as present but could not be read back")
     if _same_numbers(existing.rows, locked.rows):
-        logger.info("week %s already locked, numbers unchanged", predictions.week)
+        logger.info("%s already locked, numbers unchanged", key)
         return existing
     raise ValueError(
         f"{key} is already locked with different projections. A locked week cannot be "
@@ -193,10 +206,62 @@ def _same_numbers(left: pd.DataFrame, right: pd.DataFrame) -> bool:
 
 
 def load_locked(records: Storage, season: int, week: int) -> WeeklyPredictions | None:
-    raw = records.get_bytes(lock_key(season, week))
+    return _load(records, lock_key(season, week))
+
+
+def load_frozen(records: Storage, season: int, week: int) -> WeeklyPredictions | None:
+    """The frozen model's projections for a week, or None for a week locked before it existed."""
+    return _load(records, frozen_key(season, week))
+
+
+def _load(records: Storage, key: str) -> WeeklyPredictions | None:
+    raw = records.get_bytes(key)
     if raw is None:
         return None
     return WeeklyPredictions.from_json(json.loads(raw.decode("utf-8")))
+
+
+def predict_frozen(
+    features: pd.DataFrame,
+    locked: WeeklyPredictions,
+    model_factory=PredictionModel,
+) -> WeeklyPredictions:
+    """The control: what a model fixed before the season says about the players just locked.
+
+    It is the same model, trained the same way, but only on seasons before this one, so nothing
+    played this year can reach it however late in the season it runs. If the live model, which
+    retrains every week, is not beating it, the season's updates have not helped. Section 5.11 of
+    the research measured weekly retraining at about 0.7%, so expect them to be close.
+    """
+    history = features[features.season < locked.season]
+    trainable = PredictionModel.trainable(history)
+    if len(trainable) < MIN_HISTORY_ROWS:
+        raise ValueError(
+            f"only {len(trainable)} usable rows before {locked.season}; "
+            f"need {MIN_HISTORY_ROWS} for the frozen model"
+        )
+    train, calibration = _split_for_calibration(trainable)
+    model = model_factory().fit(train, calibration=calibration)
+
+    current = features[
+        (features.season == locked.season)
+        & (features.week == locked.week)
+        & features.player_id.isin(locked.rows.player_id)
+    ]
+    # Same availability as the live projection, so the two differ only in the points model.
+    probability = locked.rows.set_index("player_id").probability_of_playing
+    rows = model.predict(
+        current, play_probability=probability.reindex(current.player_id).to_numpy()
+    )
+    version = f"{model.version}-frozen-{locked.season - 1}"
+    rows["model_version"] = version
+    return WeeklyPredictions(
+        season=locked.season,
+        week=locked.week,
+        generated_at=_now(),
+        model_version=version,
+        rows=rows.reset_index(drop=True),
+    )
 
 
 def grade_week(
@@ -223,10 +288,12 @@ def grade_week(
     error = (graded.actual_ppr - graded.points).to_numpy()
     baselines = baseline_predictions(graded)
     frozen_mae = None
+    frozen_within = None
     if frozen_points is not None:
         aligned = frozen_points.reindex(graded.player_id.to_numpy())
         if aligned.notna().all():
             frozen_mae = round(float(np.mean(np.abs(graded.actual_ppr - aligned.to_numpy()))), 4)
+            frozen_within = _share_within(graded.actual_ppr, aligned.to_numpy())
 
     return GradedWeek(
         season=locked.season,
@@ -243,6 +310,7 @@ def grade_week(
             for name, values in baselines.items()
         },
         frozen_model_mae=frozen_mae,
+        frozen_within_5_points=frozen_within,
         within_5_points=_share_within(graded.actual_ppr, graded.points),
         baseline_within_5_points={
             name: _share_within(graded.actual_ppr, values) for name, values in baselines.items()

@@ -53,6 +53,11 @@ def combine(weeks: list[GradedWeek]) -> GradedWeek | None:
             name: pooled([w.baseline_mae.get(name, np.nan) for w in weeks]) for name in names
         },
         frozen_model_mae=pooled(frozen) if all(f is not None for f in frozen) else None,
+        frozen_within_5_points=(
+            pooled([w.frozen_within_5_points for w in weeks])
+            if all(w.frozen_within_5_points is not None for w in weeks)
+            else None
+        ),
         within_5_points=pooled([w.within_5_points for w in weeks]),
         baseline_within_5_points={
             name: pooled([w.baseline_within_5_points.get(name, np.nan) for w in weeks])
@@ -103,27 +108,33 @@ def verdict(weeks: list[GradedWeek], season_to_date: GradedWeek | None) -> str:
             f"currently {direction}."
         )
 
-    parts.append(_learning_sentence(weeks, season_to_date))
+    parts.append(_learning_sentence(weeks))
     return " ".join(p for p in parts if p)
 
 
-def _learning_sentence(weeks: list[GradedWeek], season_to_date: GradedWeek) -> str:
+def _learning_sentence(weeks: list[GradedWeek]) -> str:
     """Whether "it is getting better" is true, answered against the frozen control.
 
     Section 5.11 found that weekly retraining is worth about 0.7% and that the gap does not widen as
     a season goes on. So the honest default is to report no detectable improvement, and only claim
     otherwise when the control line says so.
+
+    Only weeks that have a control are compared, pooled on their own: the frozen model started
+    partway through the season, and comparing it with the live model's error over every week would
+    mix two different sets of games.
     """
-    if season_to_date.frozen_model_mae is None:
+    controlled = combine([w for w in weeks if w.frozen_model_mae is not None])
+    if controlled is None:
         return (
             "The frozen-model control has not been graded yet, so there is no basis yet for saying "
             "whether the system is improving."
         )
-    gain = season_to_date.frozen_model_mae - season_to_date.mae
-    if len(weeks) < MIN_WEEKS_FOR_A_TREND:
+    count = sum(1 for w in weeks if w.frozen_model_mae is not None)
+    gain = controlled.frozen_model_mae - controlled.mae
+    if count < MIN_WEEKS_FOR_A_TREND:
         return (
             f"Against a model frozen before the season the difference is {gain:+.2f} points, but "
-            f"{len(weeks)} weeks is too few to read anything into."
+            f"{count} weeks is too few to read anything into."
         )
     if gain > 0.05:
         return (

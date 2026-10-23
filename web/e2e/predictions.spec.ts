@@ -106,6 +106,14 @@ test.describe("Report card", () => {
     await expect(page.getByRole("row").filter({ hasText: "5.58" })).toContainText("52%");
   });
 
+  test("adds the frozen model to the chart once weeks have one", async ({ page }) => {
+    await page.goto("/report-card/");
+
+    const chart = page.getByRole("img", { name: /Projections within 5 points, by week/ });
+    await expect(chart).toHaveAccessibleName(/Frozen model: 53% within 5 points in week 3/);
+    await expect(page.getByText("Frozen model", { exact: true })).toBeVisible();
+  });
+
   test("publishes the experiments that failed, not only the ones that worked", async ({ page }) => {
     await page.goto("/report-card/");
 

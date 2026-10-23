@@ -204,6 +204,8 @@ export interface GradedWeek {
   baseline_mae: Record<string, number>;
   /** A model frozen before the season, scored on the same games. */
   frozen_model_mae: number | null;
+  /** The frozen model's share within 5 points. Null for weeks locked before it existed. */
+  frozen_within_5_points?: number | null;
   /** Share of projections within 5 points of the real score. Missing on data published before it existed. */
   within_5_points?: number;
   baseline_within_5_points?: Record<string, number>;

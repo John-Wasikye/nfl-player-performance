@@ -29,7 +29,15 @@ from nfl_pipeline.predict.features import POSITIONS, load_features
 from nfl_pipeline.predict.kickoff import first_kickoff_utc, lock_state
 from nfl_pipeline.predict.ledger import Ledger
 from nfl_pipeline.predict.report import build_accuracy_file
-from nfl_pipeline.predict.weekly import grade_week, load_locked, lock_week, predict_week
+from nfl_pipeline.predict.weekly import (
+    grade_week,
+    load_frozen,
+    load_locked,
+    lock_frozen,
+    lock_week,
+    predict_frozen,
+    predict_week,
+)
 from nfl_pipeline.storage import Storage
 
 logger = logging.getLogger("nfl_pipeline.predict.run")
@@ -178,7 +186,9 @@ def grade_finished_weeks(features: pd.DataFrame, records: Storage, season: int) 
         locked = load_locked(records, season, int(week))
         if locked is None or locked.locked_at is None:
             continue
-        result = grade_week(locked, features)
+        frozen = load_frozen(records, season, int(week))
+        frozen_points = frozen.rows.set_index("player_id").points if frozen is not None else None
+        result = grade_week(locked, features, frozen_points=frozen_points)
         if result is not None:
             graded.append(result)
     return graded
@@ -205,6 +215,15 @@ def _lock_due(warehouse: Path, season: int, week: int, now: datetime) -> bool:
             "unless a person decides otherwise."
         )
     return state == "lock"
+
+
+def _still_before_kickoff(warehouse: Path, season: int, week: int, now: datetime) -> bool:
+    """Whether a forecast made now would still be one, by the same clock the lock uses."""
+    try:
+        kickoff = first_kickoff_utc(warehouse, season, week)
+    except duckdb.Error:
+        return False
+    return lock_state(kickoff, now) == "lock"
 
 
 def _require_projection_if_lock_is_near(
@@ -300,6 +319,8 @@ def run_predictions(
         if existing is not None:
             # Already frozen. Publish exactly what was frozen; a fresh projection would differ.
             predictions = existing
+            # A run that died between the two writes leaves the lock without its control.
+            control_due = _still_before_kickoff(warehouse, season, target, now)
         else:
             if lock_when_due:
                 lock = _lock_due(warehouse, season, target, now)
@@ -311,6 +332,14 @@ def run_predictions(
                 ) from error
             if lock:
                 predictions = lock_week(predictions, records)
+            control_due = lock
+        if control_due and load_frozen(records, season, target) is None:
+            try:
+                lock_frozen(predict_frozen(features, predictions), records)
+            except ValueError as error:
+                raise PredictionError(
+                    f"could not project {season} week {target} with the frozen model: {error}"
+                ) from error
         published = _to_published(
             predictions.rows,
             features,

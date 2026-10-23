@@ -214,6 +214,7 @@ class GradedWeek(Model):
     baseline_mae: dict[str, float]
     # The control line: a model frozen before the season, so "it is improving" is checkable.
     frozen_model_mae: float | None
+    frozen_within_5_points: float | None
     # Share of projections within 5 fantasy points of the real score: the headline accuracy figure,
     # with the same share for each baseline on the same rows.
     within_5_points: float

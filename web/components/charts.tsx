@@ -148,15 +148,18 @@ export interface ValueSeries {
   label: string;
   color: string;
   dashed?: boolean;
+  /** Dots rather than dashes, so two comparison lines differ by more than colour. */
+  dotted?: boolean;
   points: ValuePoint[];
 }
 
 /**
- * Share of projections within 5 points of the real score each week, for the model and for the best
- * simple average on the same players. A week graded before the figure existed is left as a gap.
+ * Share of projections within 5 points of the real score each week, for the model, the best simple
+ * average and, once it exists, the frozen model, all on the same players. A week graded before a
+ * figure existed is left as a gap.
  */
 export function withinSeries(weeks: GradedWeek[]): ValueSeries[] {
-  return [
+  const series: ValueSeries[] = [
     {
       id: "model",
       label: "Model",
@@ -174,6 +177,17 @@ export function withinSeries(weeks: GradedWeek[]): ValueSeries[] {
       }),
     },
   ];
+  // The model fixed before the season. It started partway through, so earlier weeks are gaps.
+  if (weeks.some((w) => w.frozen_within_5_points != null)) {
+    series.push({
+      id: "frozen",
+      label: "Frozen model",
+      color: "var(--teal)",
+      dotted: true,
+      points: weeks.map((w) => ({ week: w.week, value: w.frozen_within_5_points ?? null })),
+    });
+  }
+  return series;
 }
 
 const PERCENT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -272,7 +286,7 @@ export function AccuracyHistoryChart({ series, title }: { series: ValueSeries[];
                 strokeWidth="2.5"
                 strokeLinejoin="round"
                 strokeLinecap="round"
-                strokeDasharray={s.dashed ? "6 5" : undefined}
+                strokeDasharray={s.dotted ? "1 5" : s.dashed ? "6 5" : undefined}
               />
             ))}
             {s.points.map(
@@ -290,7 +304,7 @@ export function AccuracyHistoryChart({ series, title }: { series: ValueSeries[];
         {series.map((s) => (
           <span key={s.id} className="inline-flex items-center gap-2">
             <svg width="24" height="8" aria-hidden="true">
-              <line x1="0" x2="24" y1="4" y2="4" stroke={s.color} strokeWidth="2.5" strokeDasharray={s.dashed ? "5 4" : undefined} />
+              <line x1="0" x2="24" y1="4" y2="4" stroke={s.color} strokeWidth="2.5" strokeDasharray={s.dotted ? "1 4" : s.dashed ? "5 4" : undefined} strokeLinecap={s.dotted ? "round" : undefined} />
             </svg>
             {s.label}
           </span>
