@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { openSearchWithSlash } from "./helpers";
+import { openSearchWithSlash, waitForFadeIn } from "./helpers";
 
 // axe checks (WCAG 2.2 A and AA) on each kind of page, in both themes. They don't replace testing
 // with a screen reader.
@@ -70,6 +70,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.addInitScript((value) => localStorage.setItem("theme", value), theme);
         await page.goto(path);
         await ready(page);
+        await waitForFadeIn(page);
 
         const results = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -95,6 +96,7 @@ test("the search dialog is accessible when open", async ({ page }) => {
   const dialog = await openSearchWithSlash(page);
   await dialog.getByRole("textbox").fill("allen");
   await page.getByRole("dialog").getByRole("link", { name: /Josh Allen/ }).waitFor();
+  await waitForFadeIn(page);
 
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
 
