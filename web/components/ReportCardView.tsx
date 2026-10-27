@@ -199,13 +199,19 @@ export function ReportCardView() {
           </section>
 
           <section>
-            <SectionTitle title="How to read this" />
+            <SectionTitle title="Key" />
             <Card className="p-5">
               <dl className="flex flex-col gap-4 text-sm">
                 <div>
                   <dt className="font-medium">Within 5 points</dt>
                   <dd className="text-muted">
-                    The share of projections that landed within 5 fantasy points of the real score, either side. A projection of 18 counts if he scored anywhere from 13 to 23. The dashed line is the same measure for the best simple average, such as a player&apos;s last five games, so you can see whether the model is doing better than a plain guess.
+                    The share of projections that landed within 5 fantasy points of the real score, either side. A projection of 18 counts if he scored anywhere from 13 to 23.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium">Best simple average</dt>
+                  <dd className="text-muted">
+                    A plain average of a player&apos;s recent games, the simplest guess there is. It is the dashed line on the chart. The model has to beat it to be worth anything.
                   </dd>
                 </div>
                 <div>

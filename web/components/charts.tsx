@@ -210,7 +210,7 @@ function valueSegments(points: ValuePoint[]) {
   return out;
 }
 
-/** Projections within 5 points by week, on a fixed 0% to 100% scale. Higher is better. */
+/** Projections within 5 points by week, on a fixed 0% to 100% scale. */
 export function AccuracyHistoryChart({ series, title }: { series: ValueSeries[]; title: string }) {
   const ref = useRef<HTMLElement>(null);
   const [width, setWidth] = useState(AW);
@@ -309,7 +309,6 @@ export function AccuracyHistoryChart({ series, title }: { series: ValueSeries[];
             {s.label}
           </span>
         ))}
-        <span className="ml-auto">Higher is better</span>
       </div>
     </figure>
   );

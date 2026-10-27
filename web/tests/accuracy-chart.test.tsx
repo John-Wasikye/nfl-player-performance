@@ -87,9 +87,9 @@ describe("accuracy history chart", () => {
     expect(container.querySelectorAll("circle")).toHaveLength(4);
   });
 
-  it("says that higher is better", () => {
+  it("does not print a higher-is-better note under the chart", () => {
     render(<AccuracyHistoryChart title="t" series={withinSeries(weeks)} />);
-    expect(screen.getByText("Higher is better")).toBeInTheDocument();
+    expect(screen.queryByText("Higher is better")).not.toBeInTheDocument();
   });
 
   it("draws at the width it is shown at, so the labels stay readable on a phone", () => {
