@@ -144,6 +144,10 @@ so there is no `predictions_prefix`. `config.py` has `s3_records_bucket` and `le
 layout as before: `<season>/week_NN.json` and `ledger.json`) or an `S3Storage` on the records bucket.
 `warehouse_path` stays a local path, because decision 1 makes it ephemeral on purpose.
 
+**Added 2026-10-23:** `<season>/frozen/week_NN.json` holds the frozen control's projections for a locked
+week, in the same format as the lock and under the same write-once rule. It sits beside the lock rather
+than inside it so the lock format never changed. Weeks locked before 2026 week 8 have none.
+
 Tests stay offline on the fakes in `pipeline/tests/conftest.py`, and gain a **shared contract test run
 against both backends**: a second write is refused, an identical rewrite reports already-present, and
 listing returns what was written. A fake that quietly overwrites would make this whole design

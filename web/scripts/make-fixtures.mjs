@@ -73,7 +73,7 @@ cpSync(join(source, "ledger.json"), join(target, "ledger.json"));
 
 // Written by hand because no week has been graded yet and the real file is empty. The numbers are
 // made up, to cover the states the Report card has to show, including a losing week.
-const gradedWeek = (week, mae, baseline, coverage, frozen, players, within, baselineWithin) => ({
+const gradedWeek = (week, mae, baseline, coverage, frozen, players, within, baselineWithin, frozenWithin) => ({
   season: meta.season,
   week,
   player_games: players,
@@ -82,6 +82,7 @@ const gradedWeek = (week, mae, baseline, coverage, frozen, players, within, base
   interval_coverage: coverage,
   baseline_mae: { recent_average: baseline, season_average: baseline + 0.2, last_ten: baseline + 0.1 },
   frozen_model_mae: frozen,
+  frozen_within_5_points: frozenWithin,
   within_5_points: within,
   baseline_within_5_points: {
     recent_average: baselineWithin,
@@ -91,11 +92,11 @@ const gradedWeek = (week, mae, baseline, coverage, frozen, players, within, base
 });
 const weeks = [
   // Comfortably ahead.
-  gradedWeek(1, 5.12, 5.41, 0.801, 5.33, 331, 0.58, 0.55),
+  gradedWeek(1, 5.12, 5.41, 0.801, 5.33, 331, 0.58, 0.55, 0.57),
   // Ahead by less than 0.15, which must not render as a win.
-  gradedWeek(2, 5.33, 5.4, 0.792, 5.36, 338, 0.56, 0.55),
+  gradedWeek(2, 5.33, 5.4, 0.792, 5.36, 338, 0.56, 0.55, 0.55),
   // Behind the baseline.
-  gradedWeek(3, 5.58, 5.44, 0.774, 5.41, 344, 0.52, 0.54),
+  gradedWeek(3, 5.58, 5.44, 0.774, 5.41, 344, 0.52, 0.54, 0.53),
 ];
 const pooled = (pick) =>
   Number(
@@ -122,6 +123,7 @@ write(join(target, "accuracy", `${meta.season}.json`), {
       last_ten: pooled((w) => w.baseline_mae.last_ten),
     },
     frozen_model_mae: pooled((w) => w.frozen_model_mae),
+    frozen_within_5_points: pooled((w) => w.frozen_within_5_points),
     within_5_points: pooled((w) => w.within_5_points),
     baseline_within_5_points: {
       recent_average: pooled((w) => w.baseline_within_5_points.recent_average),

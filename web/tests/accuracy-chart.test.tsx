@@ -43,6 +43,23 @@ describe("within-5 series", () => {
   });
 });
 
+describe("frozen model line", () => {
+  it("is left off until a week has a frozen forecast", () => {
+    expect(withinSeries(weeks).map((s) => s.id)).toEqual(["model", "baseline"]);
+  });
+
+  it("appears once a week has one, with gaps for weeks locked before it existed", () => {
+    const later = { ...week(7, 0.6, { recent_average: 0.55 }), frozen_within_5_points: 0.57 };
+    const frozen = withinSeries([...weeks, later]).find((s) => s.id === "frozen");
+    expect(frozen?.label).toBe("Frozen model");
+    expect(frozen?.points).toEqual([
+      { week: 5, value: null },
+      { week: 6, value: null },
+      { week: 7, value: 0.57 },
+    ]);
+  });
+});
+
 describe("accuracy history chart", () => {
   it("labels both axes", () => {
     render(<AccuracyHistoryChart title="t" series={withinSeries(weeks)} />);

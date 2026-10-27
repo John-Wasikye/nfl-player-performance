@@ -493,6 +493,7 @@ def test_the_report_card_keeps_a_frozen_model_control_line():
             "rmse": 6.0, "interval_coverage": 0.79,
             "baseline_mae": {"last_ten": 4.5}, "frozen_model_mae": 4.48,
             "within_5_points": 0.61, "baseline_within_5_points": {"last_ten": 0.58},
+            "frozen_within_5_points": 0.6,
         }
     )  # fmt: skip
 

@@ -11,7 +11,13 @@ from nfl_pipeline.config import Settings
 from nfl_pipeline.predict import run as run_module
 from nfl_pipeline.predict.kickoff import first_kickoff_utc, lock_state
 from nfl_pipeline.predict.run import PredictionError, run_predictions
-from nfl_pipeline.predict.weekly import LOCKED_COLUMNS, WeeklyPredictions, load_locked
+from nfl_pipeline.predict.weekly import (
+    LOCKED_COLUMNS,
+    WeeklyPredictions,
+    load_frozen,
+    load_locked,
+    lock_week,
+)
 from nfl_pipeline.storage import LocalStorage
 
 UTC = timezone.utc
@@ -171,14 +177,21 @@ def world(tmp_path, monkeypatch):
             "ppr_season_avg": 8.0,
         }
     )
-    projected = {"points": 10.0, "calls": 0}
+    projected = {"points": 10.0, "calls": 0, "frozen_calls": 0}
 
     def fake_predict(_features, _season, _week):
         projected["calls"] += 1
         return projection(projected["points"])
 
+    def fake_frozen(_features, locked):
+        projected["frozen_calls"] += 1
+        frozen = projection(9.0)
+        frozen.model_version = "test-frozen-2025"
+        return frozen
+
     monkeypatch.setattr(run_module, "load_features", lambda _path: features)
     monkeypatch.setattr(run_module, "predict_week", fake_predict)
+    monkeypatch.setattr(run_module, "predict_frozen", fake_frozen)
     monkeypatch.setattr(
         run_module,
         "_player_details",
@@ -255,6 +268,61 @@ def test_forcing_a_lock_still_works_for_a_person_running_it_by_hand(world):
     )
 
     assert summary.locked is True
+
+
+# ---------------------------------------------------------------- the frozen control
+
+
+def test_locking_a_week_also_locks_the_frozen_models_projections(world):
+    go(world, SUNDAY_KICKOFF_UTC - timedelta(hours=6))
+
+    frozen = load_frozen(world[2], 2026, 5)
+    assert frozen is not None
+    assert frozen.rows.points.tolist() == [9.0, 10.0]
+
+
+def test_no_frozen_projections_are_written_before_the_lock_window(world):
+    go(world, SUNDAY_KICKOFF_UTC - timedelta(hours=48))
+
+    assert load_frozen(world[2], 2026, 5) is None
+
+
+def test_a_run_that_died_after_the_lock_writes_the_missing_frozen_file_next_time(world):
+    """The lock is there but the frozen file is not: still before kickoff, so it can be written."""
+    lock_week(projection(10.0), world[2])
+
+    go(world, SUNDAY_KICKOFF_UTC - timedelta(hours=3))
+
+    assert load_frozen(world[2], 2026, 5) is not None
+    assert world[3]["calls"] == 0, "the locked week itself must not be projected again"
+
+
+def test_after_kickoff_a_missing_frozen_file_stays_missing(world):
+    """A frozen forecast made after kickoff would not be a forecast either."""
+    lock_week(projection(10.0), world[2])
+
+    summary = go(world, SUNDAY_KICKOFF_UTC + timedelta(hours=1))
+
+    assert summary.locked is True
+    assert load_frozen(world[2], 2026, 5) is None
+    assert world[3]["frozen_calls"] == 0
+
+
+def test_an_existing_frozen_file_is_not_recomputed(world):
+    go(world, SUNDAY_KICKOFF_UTC - timedelta(hours=6))
+    go(world, SUNDAY_KICKOFF_UTC - timedelta(hours=2))
+
+    assert world[3]["frozen_calls"] == 1
+
+
+def test_forcing_a_lock_by_hand_writes_the_frozen_file_too(world):
+    settings, site, records, _ = world
+
+    run_predictions(
+        settings, site, records=records, now=SUNDAY_KICKOFF_UTC - timedelta(hours=72), lock=True
+    )
+
+    assert load_frozen(records, 2026, 5) is not None
 
 
 # ---------------------------------------------------------------- nothing to project

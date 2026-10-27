@@ -593,6 +593,112 @@ def test_the_frozen_control_is_graded_on_the_same_rows(weekly):
 
     assert graded.frozen_model_mae is not None
     assert graded.frozen_model_mae > graded.mae
+    assert graded.frozen_within_5_points is not None
+    assert 0 <= graded.frozen_within_5_points <= 1
+
+
+# ---------------------------------------------------------------- the frozen control
+
+
+def test_the_frozen_model_learns_only_from_before_the_season(weekly):
+    """Fixed at the start of the season, so nothing played this year can reach it."""
+    from nfl_pipeline.predict.weekly import lock_week, predict_frozen
+
+    predictions, features, root = weekly
+    locked = lock_week(predictions, root)
+    seen: list[pd.DataFrame] = []
+
+    class Spy(PredictionModel):
+        def fit(self, history, calibration=None):
+            seen.append(history)
+            if calibration is not None:
+                seen.append(calibration)
+            return super().fit(history, calibration=calibration)
+
+    predict_frozen(features, locked, model_factory=Spy)
+
+    assert seen
+    assert all((frame.season < 2024).all() for frame in seen)
+
+
+def test_the_frozen_projections_cover_exactly_the_locked_players(weekly):
+    from nfl_pipeline.predict.weekly import lock_week, predict_frozen
+
+    predictions, features, root = weekly
+    locked = lock_week(predictions, root)
+
+    frozen = predict_frozen(features, locked)
+
+    assert sorted(frozen.rows.player_id) == sorted(locked.rows.player_id)
+    assert (frozen.season, frozen.week) == (2024, 18)
+    assert frozen.model_version.endswith("frozen-2023")
+
+
+def test_this_seasons_results_do_not_move_the_frozen_model(weekly):
+    """The live model retrains on them every week. The control must not, or it is not a control."""
+    from nfl_pipeline.predict.weekly import lock_week, predict_frozen
+
+    predictions, features, root = weekly
+    locked = lock_week(predictions, root)
+    rewritten = features.copy()
+    in_season = (rewritten.season == 2024) & (rewritten.week < 18)
+    rewritten.loc[in_season, "actual_ppr"] = rewritten.loc[in_season, "actual_ppr"] + 7.0
+
+    before = predict_frozen(features, locked).rows.set_index("player_id").points
+    after = predict_frozen(rewritten, locked).rows.set_index("player_id").points
+
+    pd.testing.assert_series_equal(before.sort_index(), after.sort_index())
+
+
+def test_frozen_projections_are_written_once_and_read_back(weekly):
+    from nfl_pipeline.predict.weekly import load_frozen, lock_frozen, lock_week, predict_frozen
+
+    predictions, features, root = weekly
+    frozen = predict_frozen(features, lock_week(predictions, root))
+
+    assert load_frozen(root, 2024, 18) is None
+    lock_frozen(frozen, root)
+    reloaded = load_frozen(root, 2024, 18)
+
+    assert reloaded.locked_at is not None
+    pd.testing.assert_series_equal(
+        reloaded.rows.set_index("player_id").points.round(6).sort_index(),
+        frozen.rows.set_index("player_id").points.round(6).sort_index(),
+        check_dtype=False,
+    )
+    # It sits beside the week's lock, never in place of it.
+    assert root.get_bytes("2024/week_18.json") is not None
+
+
+def test_a_frozen_file_cannot_be_rewritten_with_different_numbers(weekly):
+    from nfl_pipeline.predict.weekly import lock_frozen, lock_week, predict_frozen
+
+    predictions, features, root = weekly
+    frozen = predict_frozen(features, lock_week(predictions, root))
+    lock_frozen(frozen, root)
+    altered = copy.deepcopy(frozen)
+    altered.rows["points"] = altered.rows["points"] + 1.0
+
+    with pytest.raises(ValueError, match="already locked"):
+        lock_frozen(altered, root)
+
+
+def test_grading_uses_the_frozen_file_when_the_week_has_one(weekly):
+    from nfl_pipeline.predict.run import grade_finished_weeks
+    from nfl_pipeline.predict.weekly import lock_frozen, lock_week, predict_frozen
+
+    predictions, features, root = weekly
+    locked = lock_week(predictions, root)
+    played = walkable_frame()
+
+    without = grade_finished_weeks(played, root, 2024)
+    lock_frozen(predict_frozen(features, locked), root)
+    with_frozen = grade_finished_weeks(played, root, 2024)
+
+    assert without[-1].frozen_model_mae is None
+    assert without[-1].frozen_within_5_points is None
+    assert with_frozen[-1].frozen_model_mae is not None
+    assert 0 <= with_frozen[-1].frozen_within_5_points <= 1
 
 
 def test_players_ruled_out_are_left_out_of_the_published_week():
