@@ -14,8 +14,10 @@ monitored product. It runs by itself on AWS, and I priced it at about a dollar a
 - **Projections.** A forecast for each player in the coming week, with the range it could land in. Players
   ruled out are dropped, and a questionable player shows both his score if he plays and the chance he does.
 - **A report card.** Projections are locked before the first kickoff and never changed, then graded against
-  what happened. The page shows the results, including weeks where the model lost to a plain average.
-  Until a locked week finishes, it says there is nothing to grade yet.
+  what happened. The page shows each week's error against the best simple baseline, how many projections
+  landed within 5 fantasy points, and weeks where the model lost to a plain average. Since week 8 a frozen
+  copy of the model, trained only on earlier seasons, is locked beside each week, so the report card can
+  show whether retraining during the season actually helps. Weeks 5 to 8 of 2026 are graded so far.
 - **An experiment log.** Every change I try against the model is recorded with its result, including the ones
   that failed. A change ships only if it beats the current model on weeks neither was trained on.
 
@@ -29,7 +31,7 @@ then rankings and projections, then a validation gate, then JSON in S3, then Clo
    stats, charting data and Next Gen Stats. It skips files whose source has not changed, retries transient
    failures, and checks that each file is non-empty Parquet.
 2. **Transform** is dbt on DuckDB: cleaned staging models, a player-week fact table, the ranking models and a
-   point-in-time feature store for the predictions. Every run executes the data tests (158 checks, including
+   point-in-time feature store for the predictions. Every run executes the data tests (129 checks, including
    tests that prove a feature never sees its own week).
 3. **Rank and project.** The composite score mixes efficiency and production metrics, each percentile-scored
    within the position, weighted 20% efficiency and 80% production, the split that held up best in the
@@ -109,9 +111,9 @@ The website has its own instructions in [web/README.md](web/README.md), and the 
 ## Tests
 
 ```bash
-.venv/Scripts/python -m pytest                      # 268 tests
+.venv/Scripts/python -m pytest                      # 297 tests
 .venv/Scripts/python -m ruff check .
-cd web && npm test && npm run test:e2e              # 59 unit and 91 end-to-end, including accessibility
+cd web && npm test && npm run test:e2e              # 72 unit and 95 end-to-end, including accessibility
 ```
 
 CI runs all of it on every change, plus `terraform fmt` and `validate`, and fails on any high-severity
@@ -135,8 +137,8 @@ docs/                    operations runbook, design notes, the backtest, the res
 - A mobile app is planned and not started.
 - The job that copies locked forecasts and the ledger from S3 into this repository is not built. S3 is the
   authoritative copy, so nothing is at risk, but the public git record does not update on its own yet.
-- No frozen comparison model is fitted, so the report card cannot yet show whether the model improves over time.
-- No week has been graded yet. The first graded week will appear on the report card once a locked week ends.
+- The frozen comparison model only covers weeks locked from 2026 week 8 on, so the improvement-over-time
+  comparison has a short history so far.
 
 ## Data
 
