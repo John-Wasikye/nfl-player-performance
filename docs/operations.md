@@ -8,7 +8,7 @@ How the deployed system runs, where things are, and what to do when something go
 EventBridge starts one Fargate task every day at **15:00 UTC**. That is 11:00 AM Eastern while daylight
 time lasts, and 10:00 AM after the clocks change on 2026-11-01. The task runs `nfl-pipeline daily`:
 
-1. `run`: ingest the nflverse files, rebuild the warehouse with dbt (158 checks), validate, publish the
+1. `run`: ingest the nflverse files, rebuild the warehouse with dbt (129 checks), validate, publish the
    JSON, upload the warehouse snapshot.
 2. `predict --lock-when-due`: grade any finished locked weeks, project the coming week, and lock it only if
    its first kickoff is more than 30 minutes away and less than 24 hours away.
@@ -100,6 +100,7 @@ week cannot be rewritten, which is what makes the report card meaningful.
   Thursday, the options are a fallback to the newest roster week, or a second daily run.
 - **The git mirror of locked forecasts is not built.** S3 holds the authoritative copy. See
   `no-silent-failures.md` item 12.
-- **No frozen comparison model is fitted**, so the report card cannot yet show improvement over time.
+- **The frozen comparison model starts at 2026 week 8.** Earlier locked weeks have no frozen file, so the
+  report card's frozen line begins there.
 - **The analyst session** that proposes one candidate feature a week still runs on the laptop, in Claude
   Code. Moving it to AWS is described in the build plan, section 19.
